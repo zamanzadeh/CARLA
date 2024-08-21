@@ -1,9 +1,21 @@
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/carla-a-self-supervised-contrastive/time-series-anomaly-detection-on-msl)](https://paperswithcode.com/sota/time-series-anomaly-detection-on-msl?p=carla-a-self-supervised-contrastive)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/carla-a-self-supervised-contrastive/time-series-anomaly-detection-on-smap)](https://paperswithcode.com/sota/time-series-anomaly-detection-on-smap?p=carla-a-self-supervised-contrastive)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/carla-a-self-supervised-contrastive/time-series-anomaly-detection-on-smd)](https://paperswithcode.com/sota/time-series-anomaly-detection-on-smd?p=carla-a-self-supervised-contrastive)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/carla-a-self-supervised-contrastive/time-series-anomaly-detection-on-kpi)](https://paperswithcode.com/sota/time-series-anomaly-detection-on-kpi?p=carla-a-self-supervised-contrastive)
+[![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/carla-a-self-supervised-contrastive/time-series-anomaly-detection-on-wadi)](https://paperswithcode.com/sota/time-series-anomaly-detection-on-wadi?p=carla-a-self-supervised-contrastive)
+
 # CARLA: Self-supervised Contrastive Representation Learning for Time Series Anomaly Detection
 
-This repository contains the source code for the research article "*[CARLA: Self-supervised Contrastive Representation Learning for Time Series Anomaly Detection](https://arxiv.org/pdf/2308.09296)*" by [Zahra Z. Darban](https://scholar.google.com/citations?user=wl6XsiwAAAAJ&hl=en) [Monash University], [Geoffrey I. Webb](https://scholar.google.com/citations?user=_1tpf8AAAAAJ&hl=en) [Monash University], [Shirui Pan](https://scholar.google.com/citations?user=frWRJN4AAAAJ&hl=en) [Griffith University], [Charu C. Aggarwal](https://scholar.google.com/citations?user=x_wsduUAAAAJ&hl=en) [IBM], and [Mahsa Salehi](https://scholar.google.com/citations?user=tTxJ1owAAAAJ&hl=en) [Monash University]. The code is implemented in Python using the PyTorch framework.
+This repository contains the source code for the research article "*[CARLA: Self-supervised Contrastive Representation Learning for Time Series Anomaly Detection](https://www.sciencedirect.com/science/article/pii/S0031320324006253)*" by 
+- [Zahra Z. Darban](https://scholar.google.com/citations?user=wl6XsiwAAAAJ&hl=en) [Monash University], 
+- [Geoffrey I. Webb](https://scholar.google.com/citations?user=_1tpf8AAAAAJ&hl=en) [Monash University], 
+- [Shirui Pan](https://scholar.google.com/citations?user=frWRJN4AAAAJ&hl=en) [Griffith University], 
+- [Charu C. Aggarwal](https://scholar.google.com/citations?user=x_wsduUAAAAJ&hl=en) [IBM], and 
+- [Mahsa Salehi](https://scholar.google.com/citations?user=tTxJ1owAAAAJ&hl=en) [Monash University]
 
 ![enter image description here](figs/monash-logo-mono.svg)
 
+The code is implemented in Python using the PyTorch framework.
 
 ## Introduction / Model Architecture
 
