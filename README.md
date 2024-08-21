@@ -1,10 +1,11 @@
+# CARLA: Self-supervised Contrastive Representation Learning for Time Series Anomaly Detection
+
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/carla-a-self-supervised-contrastive/time-series-anomaly-detection-on-msl)](https://paperswithcode.com/sota/time-series-anomaly-detection-on-msl?p=carla-a-self-supervised-contrastive)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/carla-a-self-supervised-contrastive/time-series-anomaly-detection-on-smap)](https://paperswithcode.com/sota/time-series-anomaly-detection-on-smap?p=carla-a-self-supervised-contrastive)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/carla-a-self-supervised-contrastive/time-series-anomaly-detection-on-smd)](https://paperswithcode.com/sota/time-series-anomaly-detection-on-smd?p=carla-a-self-supervised-contrastive)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/carla-a-self-supervised-contrastive/time-series-anomaly-detection-on-kpi)](https://paperswithcode.com/sota/time-series-anomaly-detection-on-kpi?p=carla-a-self-supervised-contrastive)
 [![PWC](https://img.shields.io/endpoint.svg?url=https://paperswithcode.com/badge/carla-a-self-supervised-contrastive/time-series-anomaly-detection-on-wadi)](https://paperswithcode.com/sota/time-series-anomaly-detection-on-wadi?p=carla-a-self-supervised-contrastive)
 
-# CARLA: Self-supervised Contrastive Representation Learning for Time Series Anomaly Detection
 
 This repository contains the source code for the research article "*[CARLA: Self-supervised Contrastive Representation Learning for Time Series Anomaly Detection](https://www.sciencedirect.com/science/article/pii/S0031320324006253)*" by 
 - [Zahra Z. Darban](https://scholar.google.com/citations?user=wl6XsiwAAAAJ&hl=en) [Monash University], 
