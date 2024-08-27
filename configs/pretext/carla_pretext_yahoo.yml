@@ -8,9 +8,8 @@ model_kwargs:
    features_dim: 4
 
 # Dataset
-train_db_name: Power
-val_db_name: Power
-ds_name: '152_UCR_Anomaly_PowerDemand1_9000_18485_18821.txt'
+train_db_name: yahoo
+val_db_name: yahoo
 num_classes: 10
 
 # Loss
@@ -29,7 +28,7 @@ optimizer_kwargs:
 scheduler: cosine
 scheduler_kwargs:
    lr_decay_rate: 0.01
-batch_size: 100
+batch_size: 50
 num_workers: 1
 
 # Transformations
