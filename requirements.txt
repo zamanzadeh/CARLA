@@ -10,3 +10,6 @@ torch==1.13.0
 torchaudio==0.13.0
 torchmetrics==1.0.1
 torchvision==0.14.0
+PyYAML==6.0.2
+easydict==1.13
+termcolor==2.4.0
