@@ -92,14 +92,6 @@ def fill_ts_repository(p, loader, model, ts_repository, real_aug=False, ts_repos
             ts_repository.update(output, targets)
             # ts_repository_aug.update(output, targets)
 
-            # ts_sp_augment = batch['ts_sp_augment']  # .cuda(non_blocking=True)
-            # targets = torch.LongTensor([3]*ts_sp_augment.shape[0])
-            # ts_sp_augment = torch.from_numpy(ts_sp_augment).float()
-            # con_data = torch.cat((con_data, ts_sp_augment), dim=0)
-            # con_target = torch.cat((con_target, targets), dim=0)
-            # output = model(ts_sp_augment.view(b, h, w))
-            # ts_repository.update(output, targets)
-            # ts_repository_aug.update(output, targets)
 
             ts_ss_augment = batch['ts_ss_augment']  # .cuda(non_blocking=True)
             targets = torch.LongTensor([4]*ts_ss_augment.shape[0])
@@ -110,18 +102,10 @@ def fill_ts_repository(p, loader, model, ts_repository, real_aug=False, ts_repos
             ts_repository.update(output, targets)
             ts_repository_aug.update(output, targets)
 
-            # ts_ss2_augment = batch['ts_ss2_augment']  # .cuda(non_blocking=True)
-            # targets = torch.LongTensor([5]*ts_ss2_augment.shape[0])
-            # ts_ss2_augment = torch.from_numpy(ts_ss2_augment).float()
-            # con_data = torch.cat((con_data, ts_ss2_augment), dim=0)
-            # con_target = torch.cat((con_target, targets), dim=0)
-            # output = model(ts_ss2_augment.view(b, h, w))
-            # ts_repository.update(output, targets)
-            # ts_repository_aug.update(output, targets)
 
     if real_aug:
         con_dataset = SaveAugmentedDataset(con_data, con_target)
         con_loader = torch.utils.data.DataLoader(con_dataset, num_workers=p['num_workers'],
-                                    batch_size=p['batch_size'], pin_memory=True,
-                                    drop_last=False, shuffle=False)
+                                                 batch_size=p['batch_size'], pin_memory=True,
+                                                 drop_last=False, shuffle=False)
         torch.save(con_loader, p['contrastive_dataset'])

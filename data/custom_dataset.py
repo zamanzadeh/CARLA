@@ -12,8 +12,6 @@ class AugmentedDataset(Dataset):
         super(AugmentedDataset, self).__init__()
         transform = dataset.transform
         sanomaly = dataset.sanomaly
-        sanomaly2 = dataset.sanomaly2
-        panomaly = dataset.panomaly
         dataset.transform = None
         self.dataset = dataset
         
@@ -25,8 +23,6 @@ class AugmentedDataset(Dataset):
             self.ts_transform = transform
             self.augmentation_transform = transform
             self.subseq_anomaly = sanomaly
-            self.subseq_anomaly2 = sanomaly2
-            self.point_anomaly = panomaly
 
     def __len__(self):
         return len(self.dataset)
@@ -94,15 +90,15 @@ class NeighborsDataset(Dataset):
         all_data = dataset.data
         self.dataset = dataset
 
-        NN_indices = N_indices[dataset.targets == 0] # Nearest neighbor indices (np.array  [len(dataset) x k])
-        FN_indices = F_indices[dataset.targets == 0]  # Nearest neighbor indices (np.array  [len(dataset) x k])
+        NN_indices = N_indices.copy() # Nearest neighbor indices (np.array  [len(dataset) x k])
+        FN_indices = F_indices.copy()  # Nearest neighbor indices (np.array  [len(dataset) x k])
         if p['num_neighbors'] is not None:
             self.NN_indices = NN_indices[:, :p['num_neighbors']]
             self.FN_indices = FN_indices[:, -p['num_neighbors']:]
         #assert( int(self.indices.shape[0]/4) == len(self.dataset) )
 
-        self.dataset.data = dataset.data[dataset.targets == 0]
-        self.dataset.targets = dataset.targets[dataset.targets == 0]
+        self.dataset.data = dataset.data
+        self.dataset.targets = dataset.targets
         num_samples = self.dataset.data.shape[0]
         NN_index = np.array([np.random.choice(self.NN_indices[i], 1)[0] for i in range(num_samples)])
         FN_index = np.array([np.random.choice(self.FN_indices[i], 1)[0] for i in range(num_samples)])

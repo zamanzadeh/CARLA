@@ -20,14 +20,12 @@ class MSL(Dataset):
     """
     base_folder = ''
 
-    def __init__(self, fname, root=MyPath.db_root_dir('msl'), train=True, transform=None, panomaly= None, sanomaly= None, sanomaly2=None, mean_data=None, std_data=None):
+    def __init__(self, fname, root=MyPath.db_root_dir('msl'), train=True, transform=None, sanomaly= None, mean_data=None, std_data=None):
 
         super(MSL, self).__init__()
         self.root = root
         self.transform = transform
-        self.panomaly = panomaly
         self.sanomaly = sanomaly
-        self.sanomaly2 = sanomaly2
         self.train = train  # training set or test set
         self.classes = ['Normal', 'Anomaly']
 
@@ -48,7 +46,7 @@ class MSL(Dataset):
             labels = []
             for index, row in data_info.iterrows():
                 anomalies = ast.literal_eval(row['anomaly_sequences'])
-                length = row[-1]
+                length = row.iloc[-1]
                 label = np.zeros([length], dtype=bool)
                 for anomaly in anomalies:
                     label[anomaly[0]:anomaly[1] + 1] = True

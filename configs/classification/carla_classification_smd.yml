@@ -14,8 +14,8 @@ num_heads: 1 # Only use one head
 backbone: resnet_ts
 
 # Dataset
-train_db_name: MSL
-val_db_name: MSL
+train_db_name: smd
+val_db_name: smd
 num_classes: 10
 num_neighbors: 5
 

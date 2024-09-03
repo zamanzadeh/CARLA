@@ -25,7 +25,7 @@ def contrastive_evaluate(val_loader, model, ts_repository):
         target = torch.from_numpy(target)
         output = model(ts_org.view(b, h, w))
 
-        output = ts_repository.weighted_knn(output) 
+        output = ts_repository.weighted_knn(output)
 
         acc1 = 100*torch.mean(torch.eq(output, target).float())
         top1.update(acc1.item(), ts_org.size(0))
@@ -44,7 +44,7 @@ def get_predictions(p, dataloader, model, return_features=False, is_training=Fal
     if return_features:
         ft_dim = get_feature_dimensions_backbone(p)
         features = torch.zeros((len(dataloader.sampler), ft_dim)) #.cuda()
-    
+
     if isinstance(dataloader.dataset, NeighborsDataset): # Also return the neighbors
         key_ = 'anchor'
         include_neighbors = True
@@ -136,8 +136,8 @@ def classification_evaluate(predictions):
 
         # Entropy loss
         entropy_loss = entropy(torch.mean(probs, dim=0), input_as_probabilities=True).item()
-        
-        # Consistency loss       
+
+        # Consistency loss
         similarity = torch.matmul(probs, probs.t())
         neighbors = neighbors.contiguous().view(-1)
         anchors = org_anchors.contiguous().view(-1)
@@ -153,8 +153,8 @@ def classification_evaluate(predictions):
         inconsistency_loss = F.binary_cross_entropy(similarity, ones).item()
 
         # Total loss
-        total_loss = - 5*entropy_loss + consistency_loss - inconsistency_loss
-        
+        total_loss = 5*entropy_loss + consistency_loss - 0*inconsistency_loss
+
         output.append({'entropy': entropy_loss, 'consistency': consistency_loss, 'inconsistency': inconsistency_loss, 'total_loss': total_loss})
 
     total_losses = [output_['total_loss'] for output_ in output]
@@ -182,8 +182,12 @@ def pr_evaluate(all_predictions, class_names=None,
     precision, recall, thresholds = precision_recall_curve(labels, scores, pos_label=1)
     try:
         f1_score = 2*precision*recall / (precision+recall)
-    except:
-        f1_score = 0.0
+        if np.isnan(f1_score).any():
+            f1_score = np.nan_to_num(f1_score)
+            print('f1: Nan --> 0')
+    except ZeroDivisionError:
+        f1_score = [0.0]
+        print('f1: 0 --> 0')
 
     best_f1_index = np.argmax(f1_score)
 

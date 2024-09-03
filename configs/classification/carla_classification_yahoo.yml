@@ -14,11 +14,10 @@ num_heads: 1 # Only use one head
 backbone: resnet_ts
 
 # Dataset
-train_db_name: Power
-val_db_name: Power
-ds_name: '152_UCR_Anomaly_PowerDemand1_9000_18485_18821.txt'
-num_classes: 6
-num_neighbors: 3
+train_db_name: yahoo
+val_db_name: yahoo
+num_classes: 10
+num_neighbors: 5
 
 # Transformations
 augmentation_strategy: ts
@@ -31,7 +30,7 @@ optimizer_kwargs:
    lr: 0.01
    weight_decay: 0.001
 epochs: 50
-batch_size: 100
+batch_size: 50
 num_workers: 1
 
 # Scheduler

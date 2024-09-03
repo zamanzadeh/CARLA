@@ -3,7 +3,7 @@ import math
 import numpy as np
 import torch
 import torchvision.transforms as transforms
-from data.augment import NoiseTransformation, PointAnomaly, SubAnomaly, SubAnomaly1, SubAnomaly2
+from data.augment import NoiseTransformation, SubAnomaly
 from utils.collate import collate_custom
 
 
@@ -78,48 +78,48 @@ def get_model(p, pretrain_path=None):
     return model
 
 
-def get_train_dataset(p, transform, panomaly, sanomaly, sanomaly2, to_augmented_dataset=False,
+def get_train_dataset(p, transform, sanomaly, to_augmented_dataset=False,
                       to_neighbors_dataset=False, split=None, data=None, label=None):
     # Base dataset
     mean, std = 0, 0
     if p['train_db_name'] == 'MSL' or p['train_db_name'] == 'SMAP':
         from data.MSL import MSL
-        dataset = MSL(p['fname'], train=True, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                      sanomaly2=sanomaly2, mean_data=None, std_data=None)
+        dataset = MSL(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                      mean_data=None, std_data=None)
         mean, std = dataset.get_info()
 
     elif p['train_db_name'] == 'Power':
         from data.powerdemand import Power
-        dataset = Power(fname=p['ds_name'], train=True, transform=transform, panomaly=panomaly, sanomaly=sanomaly)
+        dataset = Power(fname=p['ds_name'], train=True, transform=transform, sanomaly=sanomaly)
         mean, std = dataset.get_info()
 
     elif p['train_db_name'] == 'yahoo':
         from data.Yahoo import Yahoo
-        dataset = Yahoo(p['fname'], train=True, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                        sanomaly2=sanomaly2, data=data, label=label)
+        dataset = Yahoo(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                        data=data, label=label)
         mean, std = dataset.get_info()
 
     elif p['train_db_name'] == 'kpi':
         from data.KPI import KPI
-        dataset = KPI(p['fname'], train=True, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                      sanomaly2=sanomaly2, mean_data=None, std_data=None)
+        dataset = KPI(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                       mean_data=None, std_data=None)
         mean, std = dataset.get_info()
 
     elif p['train_db_name'] == 'smd':
         from data.SMD import SMD
-        dataset = SMD(p['fname'], train=True, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                      sanomaly2=sanomaly2, mean_data=None, std_data=None)
+        dataset = SMD(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                      mean_data=None, std_data=None)
         mean, std = dataset.get_info()
 
     elif p['train_db_name'] == 'swat':
         from data.SWAT import SWAT
-        dataset = SWAT(p['fname'], train=True, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                      sanomaly2=sanomaly2, mean_data=None, std_data=None)
+        dataset = SWAT(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                      mean_data=None, std_data=None)
         mean, std = dataset.get_info()
     elif p['train_db_name'] == 'wadi':
         from data.WADI import WADI
-        dataset = WADI(p['fname'], train=True, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                      sanomaly2=sanomaly2, mean_data=None, std_data=None)
+        dataset = WADI(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                      mean_data=None, std_data=None)
         mean, std = dataset.get_info()
 
     else:
@@ -152,43 +152,43 @@ def get_aug_train_dataset(p, transform, to_neighbors_dataset=False):
     return dataset
 
 
-def get_val_dataset(p, transform=None, panomaly=None, sanomaly=None, sanomaly2=None, to_neighbors_dataset=False,
+def get_val_dataset(p, transform=None, sanomaly=None, to_neighbors_dataset=False,
                     mean_data=None, std_data=None, data=None, label=None):
     # Base dataset
     if p['val_db_name'] == 'MSL' or p['val_db_name'] == 'SMAP':
         from data.MSL import MSL
-        dataset = MSL(p['fname'], train=False, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                      sanomaly2=sanomaly2, mean_data=mean_data, std_data=std_data)
+        dataset = MSL(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                      mean_data=mean_data, std_data=std_data)
 
     elif p['val_db_name'] == 'Power':
         from data.powerdemand import Power
-        dataset = Power(fname=p['ds_name'], train=False, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                        sanomaly2=sanomaly2, mean_data=mean_data, std_data=std_data)
+        dataset = Power(fname=p['ds_name'], train=False, transform=transform, sanomaly=sanomaly,
+                       mean_data=mean_data, std_data=std_data)
 
     elif p['train_db_name'] == 'yahoo':
         from data.Yahoo import Yahoo
-        dataset = Yahoo(p['fname'], train=False, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                        sanomaly2=sanomaly2, mean_data=mean_data, std_data=std_data, data=data, label=label)
+        dataset = Yahoo(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                        mean_data=mean_data, std_data=std_data, data=data, label=label)
 
     elif p['train_db_name'] == 'kpi':
         from data.KPI import KPI
-        dataset = KPI(p['fname'], train=False, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                      sanomaly2=sanomaly2, mean_data=mean_data, std_data=std_data)
+        dataset = KPI(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                      mean_data=mean_data, std_data=std_data)
 
     elif p['val_db_name'] == 'smd':
         from data.SMD import SMD
-        dataset = SMD(p['fname'], train=False, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                      sanomaly2=sanomaly2, mean_data=mean_data, std_data=std_data)
+        dataset = SMD(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                      mean_data=mean_data, std_data=std_data)
 
     elif p['val_db_name'] == 'swat':
         from data.SWAT import SWAT
-        dataset = SWAT(p['fname'], train=False, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                      sanomaly2=sanomaly2, mean_data=mean_data, std_data=std_data)
+        dataset = SWAT(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                      mean_data=mean_data, std_data=std_data)
 
     elif p['val_db_name'] == 'wadi':
         from data.WADI import WADI
-        dataset = WADI(p['fname'], train=False, transform=transform, panomaly=panomaly, sanomaly=sanomaly,
-                      sanomaly2=sanomaly2, mean_data=mean_data, std_data=std_data)
+        dataset = WADI(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                      mean_data=mean_data, std_data=std_data)
 
     else:
         raise ValueError('Invalid validation dataset {}'.format(p['val_db_name']))
@@ -215,16 +215,8 @@ def get_val_dataloader(p, dataset):
                                        drop_last=False, shuffle=False)
 
 
-def inject_point_anomaly(p):
-    return PointAnomaly()
-
-
 def inject_sub_anomaly(p):
     return SubAnomaly(p['anomaly_kwargs']['portion'])
-
-
-def inject_sub_anomaly2(p):
-    return SubAnomaly2()
 
 
 def get_train_transformations(p):
