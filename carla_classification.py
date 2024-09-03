@@ -12,7 +12,7 @@ from utils.common_config import get_train_transformations, get_val_transformatio
                                 get_train_dataset, get_train_dataloader, get_aug_train_dataset,\
                                 get_val_dataset, get_val_dataloader,\
                                 get_optimizer, get_model, get_criterion,\
-                                adjust_learning_rate, inject_point_anomaly, inject_sub_anomaly, inject_sub_anomaly2
+                                adjust_learning_rate, inject_sub_anomaly
 from utils.evaluate_utils import get_predictions, classification_evaluate, pr_evaluate
 from utils.train_utils import self_sup_classification_train
 from statsmodels.tsa.stattools import adfuller
@@ -35,9 +35,7 @@ def main():
     # Data
     print(colored('\n- Get dataset and dataloaders for ' + p['train_db_name'] + ' dataset - timeseries ' + p['fname'], 'green'))
     train_transformations = get_train_transformations(p)
-    panomaly = inject_point_anomaly(p)
     sanomaly = inject_sub_anomaly(p)
-    sanomaly2 = inject_sub_anomaly2(p)
     val_transformations = get_val_transformations1(p)
     train_dataset = get_aug_train_dataset(p, train_transformations, to_neighbors_dataset = True)
     train_dataloader = get_train_dataloader(p, train_dataset)
@@ -51,22 +49,22 @@ def main():
             for file_name in data_info['chan_id']:
                 p['fname'] = file_name
                 if ii == 0 :
-                    base_dataset = get_train_dataset(p, train_transformations, panomaly, sanomaly, sanomaly2,
+                    base_dataset = get_train_dataset(p, train_transformations, sanomaly,
                                                      to_neighbors_dataset=True)
-                    val_dataset = get_val_dataset(p, val_transformations, panomaly, sanomaly, sanomaly2, True, base_dataset.mean,
+                    val_dataset = get_val_dataset(p, val_transformations, sanomaly, True, base_dataset.mean,
                                                   base_dataset.std)
                 else:
-                    new_base_dataset = get_train_dataset(p, train_transformations, panomaly, sanomaly, sanomaly2,
+                    new_base_dataset = get_train_dataset(p, train_transformations, sanomaly,
                                                      to_neighbors_dataset=True)
-                    new_val_dataset = get_val_dataset(p, val_transformations, panomaly, sanomaly, sanomaly2, True, new_base_dataset.mean,
+                    new_val_dataset = get_val_dataset(p, val_transformations, sanomaly, True, new_base_dataset.mean,
                                                   new_base_dataset.std)
                     val_dataset.concat_ds(new_val_dataset)
                     base_dataset.concat_ds(new_base_dataset)
                 ii+=1
         else:
             #base_dataset = get_aug_train_dataset(p, train_transformations, to_neighbors_dataset = True)
-            info_ds = get_train_dataset(p, train_transformations, panomaly, sanomaly, sanomaly2, to_neighbors_dataset=False)
-            val_dataset = get_val_dataset(p, val_transformations, panomaly, sanomaly, sanomaly2, False, info_ds.mean, info_ds.std)
+            info_ds = get_train_dataset(p, train_transformations, sanomaly, to_neighbors_dataset=False)
+            val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, info_ds.mean, info_ds.std)
 
     elif p['train_db_name'] == 'yahoo':
         filename = os.path.join('datasets', 'A1Benchmark/', p['fname'])
@@ -104,33 +102,28 @@ def main():
         TEST_TS = all_test_data
         test_label = all_test_labels
 
-        base_dataset = get_train_dataset(p, train_transformations, panomaly, sanomaly, sanomaly2,
+        base_dataset = get_train_dataset(p, train_transformations, sanomaly,
                                           to_augmented_dataset=True, data=TRAIN_TS, label=train_label)
-        val_dataset = get_val_dataset(p, val_transformations, panomaly, sanomaly, sanomaly2, False, base_dataset.mean, base_dataset.std,
+        val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean, base_dataset.std,
                                         TEST_TS, test_label)
 
     elif p['train_db_name'] == 'smd':
-        base_dataset = get_train_dataset(p, train_transformations, panomaly, sanomaly, sanomaly2, to_augmented_dataset=True)
-        val_dataset = get_val_dataset(p, val_transformations, panomaly, sanomaly, sanomaly2, False, base_dataset.mean,
+        base_dataset = get_train_dataset(p, train_transformations, sanomaly, to_augmented_dataset=True)
+        val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean,
                                       base_dataset.std)
     elif p['train_db_name'] == 'kpi':
-        base_dataset = get_train_dataset(p, train_transformations, panomaly, sanomaly, sanomaly2, to_augmented_dataset=True)
-        val_dataset = get_val_dataset(p, val_transformations, panomaly, sanomaly, sanomaly2, False, base_dataset.mean,
+        base_dataset = get_train_dataset(p, train_transformations, sanomaly, to_augmented_dataset=True)
+        val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean,
                                       base_dataset.std)
 
     elif p['train_db_name'] == 'swat':
-        base_dataset = get_train_dataset(p, train_transformations, panomaly, sanomaly, sanomaly2, to_augmented_dataset=True)
-        val_dataset = get_val_dataset(p, val_transformations, panomaly, sanomaly, sanomaly2, False, base_dataset.mean,
+        base_dataset = get_train_dataset(p, train_transformations, sanomaly, to_augmented_dataset=True)
+        val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean,
                                       base_dataset.std)
 
     elif p['train_db_name'] == 'wadi':
-        base_dataset = get_train_dataset(p, train_transformations, panomaly, sanomaly, sanomaly2, to_augmented_dataset=True)
-        val_dataset = get_val_dataset(p, val_transformations, panomaly, sanomaly, sanomaly2, False, base_dataset.mean,
-                                      base_dataset.std)
-
-    elif p['train_db_name'] == 'Power':
-        base_dataset = get_train_dataset(p, train_transformations, panomaly, sanomaly, sanomaly2, to_augmented_dataset=True)
-        val_dataset = get_val_dataset(p, val_transformations, panomaly, sanomaly, sanomaly2, False, base_dataset.mean,
+        base_dataset = get_train_dataset(p, train_transformations, sanomaly, to_augmented_dataset=True)
+        val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean,
                                       base_dataset.std)
 
     val_dataloader = get_val_dataloader(p, val_dataset)
@@ -173,19 +166,12 @@ def main():
         normal_label = 0
 
 
-    # Main loop
-    #majority_label = 0
-
+    best_f1 = -10000000
     print(colored('\n- Training:', 'blue'))
     for epoch in range(start_epoch, p['epochs']):
         print(colored('-- Epoch %d/%d' %(epoch+1, p['epochs']), 'blue'))
-        #print(colored('-'*15, 'yellow'))
 
-        # Adjust lr
         lr = adjust_learning_rate(p, optimizer, epoch)
-        #print('Adjusted learning rate to {:.5f}'.format(lr))
-
-        # Train
         self_sup_classification_train(train_dataloader, model, criterion, optimizer, epoch,
                                       p['update_cluster_head_only'])
 
@@ -199,39 +185,31 @@ def main():
         label_counts = torch.bincount(predictions[0]['predictions'])
         majority_label = label_counts.argmax()
 
-        # print('Evaluate based on classification loss ...')
         classification_stats = classification_evaluate(predictions)
-        # print(classification_stats)
         lowest_loss_head = classification_stats['lowest_loss_head']
         lowest_loss = classification_stats['lowest_loss']
         predictions = get_predictions(p, val_dataloader, model, False, False)
+
         rep_f1 = pr_evaluate(predictions, compute_confusion_matrix=False, majority_label=majority_label)
 
-        # Checkpoint
-        if lowest_loss <= best_loss:
-            best_loss = lowest_loss
+        if rep_f1 > best_f1:
+            best_f1 = rep_f1
             nomral_label = majority_label
             # print('New Checkpoint ...')
             torch.save({'model': model.module.state_dict(), 'head': best_loss_head, 'normal_label': normal_label}, p['classification_model'])
             torch.save({'optimizer': optimizer.state_dict(), 'model': model.state_dict(),
-                    'epoch': epoch + 1, 'best_loss': best_loss, 'best_loss_head': best_loss_head, 'normal_label': normal_label},
-                     p['classification_checkpoint'])
+                        'epoch': epoch + 1, 'best_loss': best_loss, 'best_loss_head': best_loss_head, 'normal_label': normal_label},
+                       p['classification_checkpoint'])
 
-    # Evaluate and save the final model
-    print(colored('\nEvaluation on test dataset:', 'blue'))
+
     model_checkpoint = torch.load(p['classification_model'], map_location='cpu')
     model.module.load_state_dict(model_checkpoint['model'])
     torch.save({'optimizer': optimizer.state_dict(), 'model': model.state_dict(),
-                'epoch': p['epochs'], 'best_loss': best_loss, 'best_loss_head': best_loss_head},
+                'epoch': p['epochs'], 'best_loss': best_loss, 'best_loss_head': best_loss_head, 'normal_label': normal_label},
                p['classification_checkpoint'])
     normal_label = model_checkpoint['normal_label']
-    print('normal label: ', normal_label)
     tst_dl = get_val_dataloader(p, val_dataset)
     predictions, _ = get_predictions(p, tst_dl, model, True)
-    # label_counts = torch.bincount(predictions[0]['predictions'])
-    # nomral_label = label_counts.argmax()
-    _ = pr_evaluate(predictions,
-                    class_names='Anom', compute_confusion_matrix=False, majority_label=normal_label)
 
 if __name__ == "__main__":
     main()

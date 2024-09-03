@@ -8,8 +8,8 @@ model_kwargs:
    features_dim: 4
 
 # Dataset
-train_db_name: SMAP
-val_db_name: SMAP
+train_db_name: MSL
+val_db_name: MSL
 num_classes: 10
 
 # Loss

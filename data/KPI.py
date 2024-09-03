@@ -19,14 +19,12 @@ class KPI(Dataset):
     """
     base_folder = ''
 
-    def __init__(self, fname, root=MyPath.db_root_dir('kpi'), train=True, transform=None, panomaly= None, sanomaly= None, sanomaly2=None, mean_data=None, std_data=None):
+    def __init__(self, fname, root=MyPath.db_root_dir('kpi'), train=True, transform=None, sanomaly= None, mean_data=None, std_data=None):
 
         super(KPI, self).__init__()
         self.root = root
         self.transform = transform
-        self.panomaly = panomaly
         self.sanomaly = sanomaly
-        self.sanomaly2 = sanomaly2
         self.train = train  # training set or test set
         self.classes = ['Normal', 'Anomaly']
 
