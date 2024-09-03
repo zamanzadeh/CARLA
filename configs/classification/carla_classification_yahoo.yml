@@ -14,8 +14,13 @@ num_heads: 1 # Only use one head
 backbone: resnet_ts
 
 # Dataset
+<<<<<<<< HEAD:configs/classification/carla_classification_smd.yml
+train_db_name: smd
+val_db_name: smd
+========
 train_db_name: yahoo
 val_db_name: yahoo
+>>>>>>>> origin/main:configs/classification/carla_classification_yahoo.yml
 num_classes: 10
 num_neighbors: 5
 

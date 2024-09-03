@@ -14,15 +14,11 @@ num_heads: 1 # Only use one head
 backbone: resnet_ts
 
 # Dataset
-<<<<<<<< HEAD:configs/classification/carla_classification_smd.yml
-train_db_name: smd
-val_db_name: smd
-========
-train_db_name: yahoo
-val_db_name: yahoo
->>>>>>>> origin/main:configs/classification/carla_classification_yahoo.yml
-num_classes: 10
-num_neighbors: 5
+train_db_name: Power
+val_db_name: Power
+ds_name: '152_UCR_Anomaly_PowerDemand1_9000_18485_18821.txt'
+num_classes: 6
+num_neighbors: 3
 
 # Transformations
 augmentation_strategy: ts
@@ -35,7 +31,7 @@ optimizer_kwargs:
    lr: 0.01
    weight_decay: 0.001
 epochs: 50
-batch_size: 50
+batch_size: 100
 num_workers: 1
 
 # Scheduler
