@@ -129,11 +129,14 @@ We evaluate the performance of the proposed model and compare the results across
 If you use this code in your research, please cite the following article:
 
 ```bibtex
-@article{darban2023carla,
-  title={CARLA: Self-supervised Contrastive Representation Learning for Time Series Anomaly Detection},
-  author={Darban, Zahra Z. and Webb, Geoffrey I and Pan, Shirui and Aggarwal, Charu C. and Salehi, Mahsa},
-  journal={arXiv preprint arXiv:2308.09296},
-  year={2023}
+@article{darban2025carla,
+  title={CARLA: Self-supervised contrastive representation learning for time series anomaly detection},
+  author={Darban, Zahra Zamanzadeh and Webb, Geoffrey I and Pan, Shirui and Aggarwal, Charu C and Salehi, Mahsa},
+  journal={Pattern Recognition},
+  volume={157},
+  pages={110874},
+  year={2025},
+  publisher={Elsevier}
 }
 ```
 
