@@ -48,9 +48,9 @@ class ConvBlock(nn.Module):
 class ResNetBlock(nn.Module):
 
     def __init__(
-        self,
-        in_channels: int,
-        out_channels: int
+            self,
+            in_channels: int,
+            out_channels: int
     ) -> None:
         super().__init__()
 
@@ -119,4 +119,4 @@ class ResNetRepresentation(nn.Module):
         return z
 
 def resnet_ts(**kwargs):
-    return {'backbone': ResNetRepresentation(**kwargs, in_channels=55, mid_channels=4), 'dim': 8}
+    return {'backbone': ResNetRepresentation(**kwargs), 'dim': kwargs['mid_channels']*2}

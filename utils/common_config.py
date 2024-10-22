@@ -37,7 +37,7 @@ def get_model(p, pretrain_path=None):
     # Get backbone
     if p['backbone'] == 'resnet_ts':
         from models.resent_time import resnet_ts
-        backbone = resnet_ts()
+        backbone = resnet_ts(**p['res_kwargs'])
 
     else:
         raise ValueError('Invalid backbone {}'.format(p['backbone']))
@@ -86,11 +86,6 @@ def get_train_dataset(p, transform, sanomaly, to_augmented_dataset=False,
         from data.MSL import MSL
         dataset = MSL(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
                       mean_data=None, std_data=None)
-        mean, std = dataset.get_info()
-
-    elif p['train_db_name'] == 'Power':
-        from data.powerdemand import Power
-        dataset = Power(fname=p['ds_name'], train=True, transform=transform, sanomaly=sanomaly)
         mean, std = dataset.get_info()
 
     elif p['train_db_name'] == 'yahoo':
@@ -159,11 +154,6 @@ def get_val_dataset(p, transform=None, sanomaly=None, to_neighbors_dataset=False
         from data.MSL import MSL
         dataset = MSL(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
                       mean_data=mean_data, std_data=std_data)
-
-    elif p['val_db_name'] == 'Power':
-        from data.powerdemand import Power
-        dataset = Power(fname=p['ds_name'], train=False, transform=transform, sanomaly=sanomaly,
-                       mean_data=mean_data, std_data=std_data)
 
     elif p['train_db_name'] == 'yahoo':
         from data.Yahoo import Yahoo
