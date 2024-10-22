@@ -166,7 +166,8 @@ def main():
         normal_label = 0
 
 
-    best_f1 = -10000000
+    best_f1 = -1 * np.inf
+    # best_loss = np.inf
     print(colored('\n- Training:', 'blue'))
     for epoch in range(start_epoch, p['epochs']):
         print(colored('-- Epoch %d/%d' %(epoch+1, p['epochs']), 'blue'))

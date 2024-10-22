@@ -33,6 +33,7 @@ def main():
     p = create_config(args.config_env, args.config_exp, args.fname)
 
     model = get_model(p)
+    best_model = None
     # model = model.cuda()
    
     # CUDNN
@@ -57,8 +58,8 @@ def main():
                                                   split='train+unlabeled')
                     val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
                                               train_dataset.std)
-                    base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True,
-                                                     split='train')
+                    # base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True,
+                    #                                  split='train')
                 else:
                     new_train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True,
                                                   split='train+unlabeled')
@@ -67,7 +68,7 @@ def main():
 
                     train_dataset.concat_ds(new_train_dataset)
                     val_dataset.concat_ds(new_val_dataset)
-                    base_dataset.concat_ds(new_train_dataset)
+                    # base_dataset.concat_ds(new_train_dataset)
 
                 ii += 1
         else:
@@ -75,8 +76,8 @@ def main():
                                               split='train+unlabeled')
             val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
                                           train_dataset.std)
-            base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True,
-                                             split='train') # Dataset w/o augs for knn eval
+            # base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True,
+            #                                  split='train') # Dataset w/o augs for knn eval
 
     elif p['train_db_name'] == 'yahoo':
         filename = os.path.join('datasets', 'A1Benchmark/', p['fname'])
@@ -117,43 +118,43 @@ def main():
                                           to_augmented_dataset=True, data=TRAIN_TS, label=train_label)
         val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
                                           train_dataset.std, TEST_TS, test_label)
-        base_dataset = get_train_dataset(p, train_transforms, sanomaly,
-                                          to_augmented_dataset=True, data=TRAIN_TS, label=train_label)
+        # base_dataset = get_train_dataset(p, train_transforms, sanomaly,
+        #                                   to_augmented_dataset=True, data=TRAIN_TS, label=train_label)
 
     elif p['train_db_name'] == 'smd':
         train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
         val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
                                       train_dataset.std)
-        base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
+        # base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
 
     elif p['train_db_name'] == 'swat':
         train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
         val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
                                       train_dataset.std)
-        base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
+        # base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
 
     elif p['train_db_name'] == 'wadi':
         train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
         val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
                                       train_dataset.std)
-        base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
+        # base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
 
     elif p['train_db_name'] == 'kpi':
         train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
         val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
                                       train_dataset.std)
-        base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
+        # base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
 
     train_dataloader = get_train_dataloader(p, train_dataset)
     val_dataloader = get_val_dataloader(p, val_dataset)
-    base_dataloader = get_val_dataloader(p, base_dataset)
+    base_dataloader = get_val_dataloader(p, train_dataset)
 
     print('Dataset contains {}/{} train/val samples'.format(len(train_dataset), len(val_dataset)))
     
     # TS Repository
    # base_dataset = get_train_dataset(p, train_transforms, panomaly, sanomaly, to_augmented_dataset=True, split='train')
 
-    ts_repository_base = TSRepository(len(base_dataset),
+    ts_repository_base = TSRepository(len(train_dataset),
                                       p['model_kwargs']['features_dim'],
                                       p['num_classes'], p['criterion_kwargs']['temperature'])
     # ts_repository_base.cuda()
@@ -190,30 +191,21 @@ def main():
         lr = adjust_learning_rate(p, optimizer, epoch)
         print('Adjusted learning rate to {:.5f}'.format(lr))
         
-        # Train
-        print('Train ...')
+        # print('EPOCH ----> ', epoch)
         tmp_loss = pretext_train(train_dataloader, model, criterion, optimizer, epoch)
         
         # Checkpoint
         if tmp_loss <= pretext_best_loss:
             pretext_best_loss = tmp_loss
-            print('Checkpoint ...')
-            torch.save({'optimizer': optimizer.state_dict(), 'model': model.state_dict(),
-                        'epoch': epoch + 1}, p['pretext_checkpoint'])
-            torch.save(model.state_dict(), p['pretext_model'])
+            best_model = model
 
     # Save final model
-    checkpoint = torch.load(p['pretext_checkpoint'], map_location='cpu')
-    optimizer.load_state_dict(checkpoint['optimizer'])
-    model.load_state_dict(checkpoint['model'])
-    torch.save({'optimizer': optimizer.state_dict(), 'model': model.state_dict(),
-                'epoch': p['epochs']}, p['pretext_checkpoint'])
-    #torch.save(model.state_dict(), p['pretext_model'])
+    torch.save(best_model.state_dict(), p['pretext_model'])
 
     # Mine the topk nearest neighbors at the very end (Train)
     # These will be served as input to the classification loss.
     print(colored('Fill TS Repository for mining the nearest/furthest neighbors (train) ...', 'blue'))
-    ts_repository_aug = TSRepository(len(base_dataset) * 2,
+    ts_repository_aug = TSRepository(len(train_dataset) * 2,
                                      p['model_kwargs']['features_dim'],
                                      p['num_classes'], p['criterion_kwargs']['temperature']) #need size of repository == 1+num_of_anomalies
     fill_ts_repository(p, base_dataloader, model, ts_repository_base, real_aug = True, ts_repository_aug = ts_repository_aug)
