@@ -76,12 +76,12 @@ class ClassificationLoss(nn.Module):
         negsimilarity = torch.bmm(anchors_prob.view(b, 1, n), negatives_prob.view(b, n, 1)).squeeze()
         ones = torch.ones_like(negsimilarity)
         inconsistency_loss = self.bce(negsimilarity, ones)
-        
-        # Entropy loss
+        alpha = 0.001
+
         entropy_loss = entropy(torch.mean(anchors_prob, 0), input_as_probabilities = True)
 
         # Total loss
-        total_loss = consistency_loss - self.entropy_weight * entropy_loss - inconsistency_loss
+        total_loss = consistency_loss - self.entropy_weight * entropy_loss - alpha*inconsistency_loss
 
         return total_loss, consistency_loss, inconsistency_loss, entropy_loss
 
