@@ -99,21 +99,20 @@ class SubAnomaly(object):
         Adding sub anomaly with user-defined portion
         """
         window = X.copy()
-        anomaly_seasonal = np.zeros_like(window)
-        anomaly_trend = np.zeros_like(window)
-        anomaly_global = np.zeros_like(window)
-        anomaly_contextual = np.zeros_like(window)
-        anomaly_shapelet = np.zeros_like(window)
+        anomaly_seasonal = window.copy()
+        anomaly_trend = window.copy()
+        anomaly_global = window.copy()
+        anomaly_contextual = window.copy()
+        anomaly_shapelet = window.copy()
         if (window.ndim > 1):
             num_features = window.shape[1]
-            min_len = int(window.shape[0] * 0.2)
+            min_len = int(window.shape[0] * 0.1)
             max_len = int(window.shape[0] * 0.9)
             subsequence_length = np.random.randint(min_len, max_len)
             start_index = np.random.randint(0, len(window) - subsequence_length)
-            num_dims = np.random.randint(1, int(num_features/5))
+            num_dims = np.random.randint(int(num_features/5), int(num_features))
             for k in range(num_dims):
                 i = np.random.randint(0, num_features)
-
                 temp_win = window[:, i].reshape((window.shape[0], 1))
                 anomaly_seasonal[:, i] = self.inject_frequency_anomaly(temp_win,
                                                               scale_factor=1,

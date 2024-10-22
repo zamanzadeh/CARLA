@@ -7,22 +7,52 @@ from scipy.spatial.distance import euclidean
     AugmentedDataset
     Returns a ts together with an augmentation.
 """
+
+
 class AugmentedDataset(Dataset):
     def __init__(self, dataset):
         super(AugmentedDataset, self).__init__()
+        self.current_epoch = 0
+        self.samples = [{} for _ in range(len(dataset))]  # Initialized with empty dictionaries
         transform = dataset.transform
         sanomaly = dataset.sanomaly
         dataset.transform = None
         self.dataset = dataset
-        
+
         if isinstance(transform, dict):
             self.ts_transform = transform['standard']
             self.augmentation_transform = transform['augment']
-
         else:
             self.ts_transform = transform
             self.augmentation_transform = transform
             self.subseq_anomaly = sanomaly
+
+        self.create_pairs()
+
+    def create_pairs(self):
+        mmean, sstd = self.dataset.get_info()
+        for index in range(len(self.dataset)):
+            item = self.dataset.__getitem__(index)
+            ts_org = item['ts_org']
+            ts_trg = item['target']
+
+            # Get random neighbor from windows before time step T
+            if index > 10:
+                rand_nei = np.random.randint(index - 10, index)
+                sample_nei = self.dataset.__getitem__(rand_nei)
+                ts_w_augment = sample_nei['ts_org']
+            else:
+                ts_w_augment = self.augmentation_transform(ts_org)
+
+            ts_ss_augment = self.subseq_anomaly(ts_org)
+
+            sstd = np.where((sstd == 0.0), 1.0, sstd)
+            self.samples[index] = {  # Properly updating self.samples with generated data
+                'ts_org': (ts_org - mmean) / sstd,
+                'ts_w_augment': (ts_w_augment - mmean) / sstd,
+                'ts_ss_augment': (ts_ss_augment - mmean) / sstd,
+                'target': ts_trg
+            }
 
     def __len__(self):
         return len(self.dataset)
@@ -31,45 +61,11 @@ class AugmentedDataset(Dataset):
         self.dataset.data = np.concatenate((self.dataset.data, new_ds.dataset.data), axis=0)
         self.dataset.targets = np.concatenate((self.dataset.targets, new_ds.dataset.targets), axis=0)
 
+    def set_epoch(self, epoch):
+        self.current_epoch = epoch
+
     def __getitem__(self, index):
-        mmean, sstd = self.dataset.get_info()
-
-        sample = self.dataset.__getitem__(index)
-        ts_org = sample['ts_org']
-
-        #get random neighbour from windows before time step T
-        if (index > 10):
-            rand_nei = np.random.randint(index-10, index)
-            sample_nei = self.dataset.__getitem__(rand_nei)
-            # best_dist = 0
-            # best_nei = index
-            # for ii in range(10):
-            #     sample_nei = self.dataset.__getitem__(index - ii -1)
-            #     dist, path = fastdtw(ts_org, sample_nei['ts_org'], dist=euclidean)
-            #     if abs(dist) < abs(best_dist):
-            #         best_dist = dist
-            #         best_nei = index - ii -1
-            #
-            # sample_nei = self.dataset.__getitem__(best_nei)
-            sample['ts_w_augment'] = sample_nei['ts_org']
-        else:
-            sample['ts_w_augment'] = self.augmentation_transform(ts_org)
-
-        sample['ts_ss_augment'] = self.subseq_anomaly(ts_org)
-
-
-        #sample['ts_w_augment'] = self.augmentation_transform(ts_org)
-        #sample['ts_sp_augment'] = self.point_anomaly(ts_org)
-        #sample['ts_ss2_augment'] = self.subseq_anomaly2(ts_org)
-
-        sstd = np.where((sstd == 0.0), 1.0, sstd)
-        sample['ts_org'] = (ts_org - mmean) / sstd
-        sample['ts_w_augment'] = (sample['ts_w_augment'] - mmean) / sstd
-        #sample['ts_sp_augment'] = (sample['ts_sp_augment'] - mmean) / sstd
-        sample['ts_ss_augment'] = (sample['ts_ss_augment'] - mmean) / sstd
-        #sample['ts_ss2_augment'] = (sample['ts_ss2_augment'] - mmean) / sstd
-
-        return sample
+        return self.samples[index]
 
 """ 
     NeighborsDataset
