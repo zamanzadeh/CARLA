@@ -4,7 +4,7 @@ setup: classification
 # Loss
 criterion: classification
 criterion_kwargs:
-   entropy_weight: 5
+   entropy_weight: 2
 
 # Weight update
 update_cluster_head_only: False # Update full network in classification
@@ -12,15 +12,13 @@ num_heads: 1 # Only use one head
 
 # Model
 backbone: resnet_ts
+res_kwargs:
+  in_channels: 38
+  mid_channels: 4
 
 # Dataset
-<<<<<<<< HEAD:configs/classification/carla_classification_smd.yml
 train_db_name: smd
 val_db_name: smd
-========
-train_db_name: yahoo
-val_db_name: yahoo
->>>>>>>> origin/main:configs/classification/carla_classification_yahoo.yml
 num_classes: 10
 num_neighbors: 5
 
