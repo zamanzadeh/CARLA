@@ -74,7 +74,7 @@ class SubAnomaly(object):
         anomalous_subsequence = window[start_index:end_index]
 
         # Concatenate the subsequence by the compression factor, and then subsample to compress it
-        anomalous_subsequence = np.repeat(anomalous_subsequence, compression_factor, axis=0) #torch.cat([anomalous_subsequence] * compression_factor, dim=0)
+        anomalous_subsequence = np.tile(anomalous_subsequence, (compression_factor, 1))
         anomalous_subsequence = anomalous_subsequence[::compression_factor]
 
         # Scale the subsequence and replace the original subsequence with the anomalous subsequence
