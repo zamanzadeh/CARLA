@@ -5,7 +5,7 @@ from torch import Tensor
 
 from utils.utils import AverageMeter, ProgressMeter
 
-def pretext_train(train_loader, model, criterion, optimizer, epoch):
+def pretext_train(train_loader, model, criterion, optimizer, epoch, prev_loss):
 
     losses = AverageMeter('Loss', ':.4e')
     progress = ProgressMeter(len(train_loader),
@@ -17,25 +17,22 @@ def pretext_train(train_loader, model, criterion, optimizer, epoch):
     for i, batch in enumerate(train_loader):
         ts_org = batch['ts_org']
         ts_w_augmented = batch['ts_w_augment']
-        #ts_sp_augmented = batch['ts_sp_augment']
         ts_ss_augmented = batch['ts_ss_augment']
-        #ts_ss2_augmented = batch['ts_ss2_augment']
 
         if ts_org.ndim == 3:
             b, w, h = ts_org.shape
         else:
             b, w = ts_org.shape
             h =1
-        # input_: Tensor = torch.cat([torch.from_numpy(ts_org).float(), torch.from_numpy(ts_w_augmented).float(),
-        #                             torch.from_numpy(ts_sp_augmented).float(), torch.from_numpy(ts_ss_augmented).float()
-        #                                , torch.from_numpy(ts_ss2_augmented).float()], dim=0)
+
         input_: Tensor = torch.cat([torch.from_numpy(ts_org).float(), torch.from_numpy(ts_w_augmented).float(), torch.from_numpy(ts_ss_augmented).float()], dim=0)
         input_ = input_.view(b*3, h, w)
 
         output = model(input_)
         # output = output.view(b, 3, -1)
-        loss = criterion(output)
+        loss = criterion(output, current_loss = prev_loss)
         losses.update(loss.item())
+        prev_loss = losses
 
         optimizer.zero_grad()
         loss.backward()

@@ -49,7 +49,7 @@ class SubAnomaly(object):
 
         # Set the subsequence_length if not provided
         if subsequence_length is None:
-            min_len = int(window.shape[0] * 0.2)
+            min_len = int(window.shape[0] * 0.1)
             max_len = int(window.shape[0] * 0.9)
             subsequence_length = np.random.randint(min_len, max_len)
 
@@ -128,16 +128,16 @@ class SubAnomaly(object):
                                                            start_index = start_index)
 
                 anomaly_global[:, i] = self.inject_frequency_anomaly(temp_win,
-                                                            subsequence_length=3,
+                                                            subsequence_length=2,
                                                             compression_factor=1,
-                                                            scale_factor=5,
+                                                            scale_factor=8,
                                                             trend_factor=0,
                                                            start_index = start_index)
 
                 anomaly_contextual[:, i] = self.inject_frequency_anomaly(temp_win,
-                                                            subsequence_length=5,
+                                                            subsequence_length=4,
                                                             compression_factor=1,
-                                                            scale_factor=2,
+                                                            scale_factor=3,
                                                             trend_factor=0,
                                                            start_index = start_index)
 

@@ -9,15 +9,6 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
 class MSL(Dataset):
-    """`MSL <https://www>`_ Dataset.
-    Args:
-        root (string): Root directory of dataset where directory
-            ```` exists or will be saved to if download is set to True.
-        train (bool, optional): If True, creates dataset from training set, otherwise
-            creates from test set.
-        transform (callable, optional): A function/transform that takes in a ts
-            and returns a transformed version.
-    """
     base_folder = ''
 
     def __init__(self, fname, root=MyPath.db_root_dir('msl'), train=True, transform=None, sanomaly= None, mean_data=None, std_data=None):
@@ -28,7 +19,6 @@ class MSL(Dataset):
         self.sanomaly = sanomaly
         self.train = train  # training set or test set
         self.classes = ['Normal', 'Anomaly']
-
         self.data = []
         self.targets = []
         wsz, stride = 200, 1
@@ -36,7 +26,6 @@ class MSL(Dataset):
         with open(os.path.join(self.root, 'labeled_anomalies.csv'), 'r') as file:
             csv_reader = pandas.read_csv(file, delimiter=',')
 
-        # data_info = csv_reader[csv_reader['spacecraft'] == 'MSL']
         data_info = csv_reader[csv_reader['chan_id'] == fname]
 
         if self.train:
@@ -64,23 +53,18 @@ class MSL(Dataset):
         if self.train:
             self.mean = np.mean(temp, axis=0)
             self.std = np.std(temp , axis=0)
+            # min_column = np.amin(temp, axis=0)
+            # max_column = np.amax(temp, axis=0)
+            # self.mean, self.std = min_column, max_column 
         else:
+            self.mean, self.std = mean_data, std_data
+            # range_val = (std_data - mean_data) + 1e-20
+            # temp = (temp - mean_data) / range_val
             self.std[self.std == 0.0] = 1.0
             temp = (temp - self.mean) / self.std
 
         self.data = np.asarray(temp)
-
         self.data, self.targets = self.convert_to_windows(wsz, stride)
-
-    def normalize3(self, a):
-        if self.train:
-            min_column = np.amin(a, axis=0)
-            max_column = np.amax(a, axis=0)
-            self.min, self.max = min_column, max_column
-        epsilon = 1e-10
-        range_column = (self.max - self.min) + epsilon
-        normalized_array = (a - self.min) / range_column
-        return normalized_array, self.min, self.max
 
     def convert_to_windows(self, w_size, stride):
         windows = []
@@ -92,6 +76,12 @@ class MSL(Dataset):
             if sum(self.targets[st:st+w_size]) > 0:
                 lbl = 1
             else: lbl=0
+            # if self.train == False:
+            #     min_val = np.min(w, axis=0)
+            #     max_val = np.max(w, axis=0)
+            #     range_val = (max_val - min_val) + 1e-20
+            #     w = (w - min_val) / range_val
+                    
             windows.append(w)
             wlabels.append(lbl)
         return np.stack(windows), np.stack(wlabels)

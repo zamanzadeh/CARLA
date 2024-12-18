@@ -26,7 +26,7 @@ optimizer: adam
 optimizer_kwargs:
    #nesterov: False
    #momentum: 0.9
-   lr: 0.1
+   lr: 0.001
    weight_decay: 0.01
 scheduler: cosine
 scheduler_kwargs:

@@ -76,7 +76,7 @@ class ClassificationLoss(nn.Module):
         negsimilarity = torch.bmm(anchors_prob.view(b, 1, n), negatives_prob.view(b, n, 1)).squeeze()
         ones = torch.ones_like(negsimilarity)
         inconsistency_loss = self.bce(negsimilarity, ones)
-        alpha = 0.001
+        alpha = 0.0
 
         entropy_loss = entropy(torch.mean(anchors_prob, 0), input_as_probabilities = True)
 
@@ -88,44 +88,61 @@ class ClassificationLoss(nn.Module):
 
 class PretextLoss(nn.Module):
     # Based on the implementation of SupContrast
-    def __init__(self, bs, temperature):
+    def __init__(self, bs, temperature, initial_margin=1.0, adjust_factor=0.1):
         super(PretextLoss, self).__init__()
         self.temperature = temperature
         self.bs = bs
+        self.margin = initial_margin
+        self.adjust_factor = adjust_factor
 
-    def forward(self, features):
+    def forward(self, features, current_loss=None):
         """
         input:
-            - features: hidden feature representation of shape [b, 2, dim]
+            - features: hidden feature representation of shape [b, 3, dim]
 
         output:
             - loss: loss computed according to pretext triplet loss
         """
-        # features_org, features_pos, features_point, features_subseq, features_subseq2 = torch.split(features, self.bs, dim=0)
         features_org, features_pos, features_subseq = torch.split(features, self.bs, dim=0)
 
-        # loss = -torch.log(torch.exp(pos_sim/self.temperature) / (torch.exp(pos_sim/self.temperature) + torch.exp(neg_disim2/self.temperature)) ) #tmp change
+        # Normalize features for stable distance computation
+        anchor = F.normalize(features_org, dim=-1)
+        positive = F.normalize(features_pos, dim=-1)
+        negative = F.normalize(features_subseq, dim=-1)
 
-        anchor = features_org
-        positive = features_pos
-       # negative1 = features_point
-        negative2 = features_subseq
-       # negative3 = features_subseq2
-        margin = 5
+        # self.margin = 5
+        if current_loss is not None:
+            self.margin = max(0.01, self.margin - self.adjust_factor * current_loss)
 
         positive_distance = torch.sum((anchor - positive) ** 2, dim=-1) / self.temperature
-        # negative_distance1 = torch.clamp(margin - (torch.sum((anchor - negative1) ** 2, dim=-1)), min=0.0)
-        # negative_distance2 = torch.clamp(margin - (torch.sum((anchor - negative2) ** 2, dim=-1)), min=0.0)
-        # negative_distance3 = torch.clamp(margin - (torch.sum((anchor - negative3) ** 2, dim=-1)), min=0.0)
-        # loss = positive_distance + negative_distance1 + negative_distance2 + negative_distance3
-
-        #negative_distance = torch.sum((anchor - negative2) ** 2, dim=-1) #/ self.temperature
-        negative_distance = torch.sum(torch.pow(anchor.unsqueeze(1) - negative2, 2), dim=2)
-        clamped_distance = torch.clamp(margin + positive_distance - negative_distance, min=0.0)
-        loss = torch.sum(clamped_distance, dim=1)
+        negative_distance = torch.sum(torch.pow(anchor.unsqueeze(1) - negative, 2), dim=-1) / self.temperature
+        hard_negative_distance = torch.min(negative_distance, dim=1)[0]
+        loss = torch.clamp(self.margin + positive_distance - hard_negative_distance, min=0.0)
+        # clamped_distance = torch.clamp(self.margin + positive_distance - negative_distance, min=0.0)
+        # loss = torch.sum(clamped_distance, dim=1)
         loss = torch.mean(loss)
 
         return loss
+
+        # anchor = features_org
+        # positive = features_pos
+        # negative2 = features_subseq
+        # margin = 5
+
+        # positive_distance = torch.sum((anchor - positive) ** 2, dim=-1) / self.temperature
+        # # negative_distance1 = torch.clamp(margin - (torch.sum((anchor - negative1) ** 2, dim=-1)), min=0.0)
+        # # negative_distance2 = torch.clamp(margin - (torch.sum((anchor - negative2) ** 2, dim=-1)), min=0.0)
+        # # negative_distance3 = torch.clamp(margin - (torch.sum((anchor - negative3) ** 2, dim=-1)), min=0.0)
+        # # loss = positive_distance + negative_distance1 + negative_distance2 + negative_distance3
+
+        # #negative_distance = torch.sum((anchor - negative2) ** 2, dim=-1) #/ self.temperature
+        # negative_distance = torch.sum(torch.pow(anchor.unsqueeze(1) - negative2, 2), dim=2)
+        # clamped_distance = torch.clamp(margin + positive_distance - negative_distance, min=0.0)
+        # loss = torch.sum(clamped_distance, dim=1)
+        # loss = torch.mean(loss)
+
+        # return loss
+
 
     def cosine_similarity(self, x1, x2):
         dot_product = torch.sum(x1 * x2, dim=1)

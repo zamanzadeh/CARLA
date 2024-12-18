@@ -4,7 +4,7 @@ setup: classification
 # Loss
 criterion: classification
 criterion_kwargs:
-   entropy_weight: 5
+   entropy_weight: 2
 
 # Weight update
 update_cluster_head_only: False # Update full network in classification
