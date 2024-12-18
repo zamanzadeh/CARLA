@@ -10,15 +10,7 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 
 
 class SMD(Dataset):
-    """`SMD <https://www>`_ Dataset.
-    Args:
-        root (string): Root directory of dataset where directory
-            ```` exists or will be saved to if download is set to True.
-        train (bool, optional): If True, creates dataset from training set, otherwise
-            creates from test set.
-        transform (callable, optional): A function/transform that takes in a ts
-            and returns a transformed version.
-    """
+
     base_folder = ''
 
     def __init__(self, fname, root=MyPath.db_root_dir('smd'), train=True, transform=None, sanomaly= None, mean_data=None, std_data=None):
@@ -59,19 +51,18 @@ class SMD(Dataset):
             self.std[self.std == 0.0] = 1.0
             temp = (temp - self.mean) / self.std
 
-        self.targets = labels
+        # if self.train:
+        #     min_column = np.amin(temp, axis=0)
+        #     max_column = np.amax(temp, axis=0)
+        #     self.mean, self.std = min_column, max_column 
+        # else:
+        #     self.mean, self.std = mean_data, std_data
+        #     range_val = (std_data - mean_data) + 1e-20
+        #     temp = (temp - mean_data) / range_val
+
+        self.targets = np.asarray(labels)
         self.data = np.asarray(temp)
         self.data, self.targets = self.convert_to_windows(wsz, stride)
-
-    def normalize3(self, a):
-        if self.train:
-            min_column = np.amin(a, axis=0)
-            max_column = np.amax(a, axis=0)
-            self.min, self.max = min_column, max_column
-        epsilon = 1e-10
-        range_column = (self.max - self.min) + epsilon
-        normalized_array = (a - self.min) / range_column
-        return normalized_array, self.min, self.max
 
     def convert_to_windows(self, w_size, stride):
         windows = []
@@ -80,7 +71,7 @@ class SMD(Dataset):
         for i in range(0, sz):
             st = i * stride
             w = self.data[st:st+w_size]
-            if self.targets[st:st+w_size].any() > 0:
+            if (self.targets[st:st+w_size] > 0).any():                
                 lbl = 1
             else: lbl=0
             windows.append(w)

@@ -17,6 +17,17 @@ from utils.train_utils import pretext_train
 from utils.utils import fill_ts_repository
 from termcolor import colored
 from statsmodels.tsa.stattools import adfuller
+import random
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+set_seed(2)
 
 # Parser
 parser = argparse.ArgumentParser(description='pretext')
@@ -29,6 +40,10 @@ parser.add_argument('--fname',
 args = parser.parse_args()
 
 def main():
+    # # Set PyTorch-specific threading options
+    # torch.set_num_threads(1)
+    # torch.set_num_interop_threads(1) 
+
     print(colored('CARLA Pretext stage --> ', 'yellow'))
     p = create_config(args.config_env, args.config_exp, args.fname)
 
@@ -184,6 +199,7 @@ def main():
     
     # Training
     pretext_best_loss = np.inf
+    prev_loss = None
     for epoch in range(start_epoch, p['epochs']):
         print(colored('Epoch %d/%d' %(epoch+1, p['epochs']), 'yellow'))
         print(colored('-'*15, 'yellow'))
@@ -192,7 +208,7 @@ def main():
         print('Adjusted learning rate to {:.5f}'.format(lr))
         
         # print('EPOCH ----> ', epoch)
-        tmp_loss = pretext_train(train_dataloader, model, criterion, optimizer, epoch)
+        tmp_loss = pretext_train(train_dataloader, model, criterion, optimizer, epoch, prev_loss)
         
         # Checkpoint
         if tmp_loss <= pretext_best_loss:

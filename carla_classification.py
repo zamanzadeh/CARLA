@@ -16,6 +16,17 @@ from utils.common_config import get_train_transformations, get_val_transformatio
 from utils.evaluate_utils import get_predictions, classification_evaluate, pr_evaluate
 from utils.train_utils import self_sup_classification_train
 from statsmodels.tsa.stattools import adfuller
+import random
+
+def set_seed(seed):
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+set_seed(2)
 
 
 FLAGS = argparse.ArgumentParser(description='classification Loss')
