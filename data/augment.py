@@ -104,13 +104,13 @@ class SubAnomaly(object):
         anomaly_global = window.copy()
         anomaly_contextual = window.copy()
         anomaly_shapelet = window.copy()
+        min_len = int(window.shape[0] * 0.1)
+        max_len = int(window.shape[0] * 0.9)
+        subsequence_length = np.random.randint(min_len, max_len)
+        start_index = np.random.randint(0, len(window) - subsequence_length)
         if (window.ndim > 1):
             num_features = window.shape[1]
-            min_len = int(window.shape[0] * 0.1)
-            max_len = int(window.shape[0] * 0.9)
-            subsequence_length = np.random.randint(min_len, max_len)
-            start_index = np.random.randint(0, len(window) - subsequence_length)
-            num_dims = np.random.randint(int(num_features/5), int(num_features))
+            num_dims = np.random.randint(int(num_features/10), int(num_features/2)) #(int(num_features/5), int(num_features/2))
             for k in range(num_dims):
                 i = np.random.randint(0, num_features)
                 temp_win = window[:, i].reshape((window.shape[0], 1))
@@ -153,30 +153,38 @@ class SubAnomaly(object):
             temp_win = window.reshape((len(window), 1))
             anomaly_seasonal = self.inject_frequency_anomaly(temp_win,
                                                           scale_factor=1,
-                                                          trend_factor=0)
+                                                          trend_factor=0,
+                                                          subsequence_length=subsequence_length,
+                                                          start_index = start_index)
 
             anomaly_trend = self.inject_frequency_anomaly(temp_win,
                                                          compression_factor=1,
                                                          scale_factor=1,
-                                                         trend_end=True)
+                                                         trend_end=True,
+                                                         subsequence_length=subsequence_length,
+                                                         start_index = start_index)
 
             anomaly_global = self.inject_frequency_anomaly(temp_win,
                                                         subsequence_length=3,
                                                         compression_factor=1,
-                                                        scale_factor=5,
-                                                        trend_factor=0)
+                                                        scale_factor=8,
+                                                        trend_factor=0,
+                                                        start_index = start_index)
 
             anomaly_contextual = self.inject_frequency_anomaly(temp_win,
                                                         subsequence_length=5,
                                                         compression_factor=1,
-                                                        scale_factor=2,
-                                                        trend_factor=0)
+                                                        scale_factor=3,
+                                                        trend_factor=0,
+                                                        start_index = start_index)
 
             anomaly_shapelet = self.inject_frequency_anomaly(temp_win,
                                                       compression_factor=1,
                                                       scale_factor=1,
                                                       trend_factor=0,
-                                                      shapelet_factor=True)
+                                                      shapelet_factor=True,
+                                                      subsequence_length=subsequence_length,
+                                                      start_index = start_index)
 
         anomalies = [anomaly_seasonal,
                      anomaly_trend,
@@ -188,6 +196,7 @@ class SubAnomaly(object):
         anomalous_window = random.choice(anomalies)
 
         return anomalous_window
+
 
 
 

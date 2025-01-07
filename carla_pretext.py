@@ -27,7 +27,7 @@ def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-set_seed(2)
+set_seed(4)
 
 # Parser
 parser = argparse.ArgumentParser(description='pretext')
@@ -95,7 +95,7 @@ def main():
             #                                  split='train') # Dataset w/o augs for knn eval
 
     elif p['train_db_name'] == 'yahoo':
-        filename = os.path.join('datasets', 'A1Benchmark/', p['fname'])
+        filename = os.path.join('/home/zahraz/hz18_scratch/zahraz/datasets/', 'Yahoo/', p['fname'])
         dataset = []
 
         print(filename)
@@ -136,29 +136,11 @@ def main():
         # base_dataset = get_train_dataset(p, train_transforms, sanomaly,
         #                                   to_augmented_dataset=True, data=TRAIN_TS, label=train_label)
 
-    elif p['train_db_name'] == 'smd':
+    elif p['train_db_name'] == 'smd' or p['train_db_name'] == 'kpi' or p['train_db_name'] == 'swat' \
+        or p['train_db_name'] == 'swan' or p['train_db_name'] == 'gecco' or p['train_db_name'] == 'wadi' or p['train_db_name'] == 'ucr':
         train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
         val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
                                       train_dataset.std)
-        # base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
-
-    elif p['train_db_name'] == 'swat':
-        train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
-        val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
-                                      train_dataset.std)
-        # base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
-
-    elif p['train_db_name'] == 'wadi':
-        train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
-        val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
-                                      train_dataset.std)
-        # base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
-
-    elif p['train_db_name'] == 'kpi':
-        train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
-        val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
-                                      train_dataset.std)
-        # base_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
 
     train_dataloader = get_train_dataloader(p, train_dataset)
     val_dataloader = get_val_dataloader(p, val_dataset)

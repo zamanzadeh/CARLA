@@ -111,6 +111,25 @@ def get_train_dataset(p, transform, sanomaly, to_augmented_dataset=False,
         dataset = SWAT(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
                       mean_data=None, std_data=None)
         mean, std = dataset.get_info()
+
+    elif p['train_db_name'] == 'swan':
+        from data.Swan import Swan
+        dataset = Swan(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                      mean_data=None, std_data=None)
+        mean, std = dataset.get_info()
+
+    elif p['train_db_name'] == 'gecco':
+        from data.GECCO import GECCO
+        dataset = GECCO(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                      mean_data=None, std_data=None)
+        mean, std = dataset.get_info()
+    
+    elif p['train_db_name'] == 'ucr':
+        from data.UCR import UCR
+        dataset = UCR(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                      mean_data=None, std_data=None)
+        mean, std = dataset.get_info()
+
     elif p['train_db_name'] == 'wadi':
         from data.WADI import WADI
         dataset = WADI(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
@@ -173,6 +192,21 @@ def get_val_dataset(p, transform=None, sanomaly=None, to_neighbors_dataset=False
     elif p['val_db_name'] == 'swat':
         from data.SWAT import SWAT
         dataset = SWAT(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                      mean_data=mean_data, std_data=std_data)
+
+    elif p['val_db_name'] == 'swan':
+        from data.Swan import Swan
+        dataset = Swan(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                      mean_data=mean_data, std_data=std_data)
+
+    elif p['val_db_name'] == 'gecco':
+        from data.GECCO import GECCO
+        dataset = GECCO(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                      mean_data=mean_data, std_data=std_data)
+    
+    elif p['val_db_name'] == 'ucr':
+        from data.UCR import UCR
+        dataset = UCR(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
                       mean_data=mean_data, std_data=std_data)
 
     elif p['val_db_name'] == 'wadi':
