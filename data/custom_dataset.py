@@ -53,13 +53,16 @@ class AugmentedDataset(Dataset):
                 ts_w_augment = self.augmentation_transform(ts_org)
 
             ts_ss_augment = self.subseq_anomaly(ts_org)
-
             sstd = np.where((sstd == 0.0), 1.0, sstd)
-            self.samples[index] = {  # Properly updating self.samples with generated data
+            self.samples[index] = {
                 'ts_org': (ts_org - mmean) / sstd,
                 'ts_w_augment': (ts_w_augment - mmean) / sstd,
                 'ts_ss_augment':  (ts_ss_augment - mmean) / sstd,
                 'target': ts_trg
+                # 'ts_org': (ts_org - min_data) / range_val,
+                # 'ts_w_augment': (ts_w_augment - min_data) / range_val,
+                # 'ts_ss_augment':  (ts_ss_augment - min_data) / range_val,
+                # 'target': ts_trg
             }
 
     def __len__(self):

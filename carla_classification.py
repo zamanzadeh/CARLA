@@ -26,7 +26,7 @@ def set_seed(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-set_seed(2)
+set_seed(4)
 
 
 FLAGS = argparse.ArgumentParser(description='classification Loss')
@@ -78,9 +78,8 @@ def main():
             val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, info_ds.mean, info_ds.std)
 
     elif p['train_db_name'] == 'yahoo':
-        filename = os.path.join('datasets', 'A1Benchmark/', p['fname'])
+        filename = os.path.join('/home/zahraz/hz18_scratch/zahraz/datasets/', 'Yahoo/', p['fname'])
         dataset = []
-
         # print(filename)
         df = pandas.read_csv(filename)
         dataset.append({
@@ -118,24 +117,12 @@ def main():
         val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean, base_dataset.std,
                                         TEST_TS, test_label)
 
-    elif p['train_db_name'] == 'smd':
-        base_dataset = get_train_dataset(p, train_transformations, sanomaly, to_augmented_dataset=True)
-        val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean,
-                                      base_dataset.std)
-    elif p['train_db_name'] == 'kpi':
-        base_dataset = get_train_dataset(p, train_transformations, sanomaly, to_augmented_dataset=True)
-        val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean,
-                                      base_dataset.std)
-
-    elif p['train_db_name'] == 'swat':
+    elif p['train_db_name'] == 'smd' or p['train_db_name'] == 'kpi' or p['train_db_name'] == 'swat' \
+        or p['train_db_name'] == 'swan' or p['train_db_name'] == 'gecco' or p['train_db_name'] == 'wadi' or p['train_db_name'] == 'ucr':
         base_dataset = get_train_dataset(p, train_transformations, sanomaly, to_augmented_dataset=True)
         val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean,
                                       base_dataset.std)
 
-    elif p['train_db_name'] == 'wadi':
-        base_dataset = get_train_dataset(p, train_transformations, sanomaly, to_augmented_dataset=True)
-        val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean,
-                                      base_dataset.std)
 
     val_dataloader = get_val_dataloader(p, val_dataset)
 

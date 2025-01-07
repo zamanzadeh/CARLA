@@ -33,7 +33,7 @@ class SWAT(Dataset):
         self.data = []
         self.targets = []
         labels = []
-        wsz, stride = 200, 1
+        wsz, stride = 200, 10
 
         if self.train:
             fname += '_train.csv'
@@ -45,32 +45,30 @@ class SWAT(Dataset):
         labels = np.asarray(temp['attack'])
         temp = np.asarray(temp.iloc[:, 1:52])
 
-
         if np.any(sum(np.isnan(temp))!=0):
             print('Data contains NaN which replaced with zero')
             temp = np.nan_to_num(temp)
 
         self.mean, self.std = mean_data, std_data
+        # if self.train:
+        #     self.mean = np.mean(temp, axis=0)
+        #     self.std = np.std(temp , axis=0)
+        # else:
+        #     self.std[self.std == 0.0] = 1.0
+        #     temp = (temp - self.mean) / self.std
+
         if self.train:
-            self.mean = np.mean(temp, axis=0)
-            self.std = np.std(temp , axis=0)
+            min_column = np.amin(temp, axis=0)
+            max_column = np.amax(temp, axis=0)
+            self.mean, self.std = min_column, max_column 
         else:
-            self.std[self.std == 0.0] = 1.0
-            temp = (temp - self.mean) / self.std
+            self.mean, self.std = mean_data, std_data
+            range_val = (std_data - mean_data) + 1e-20
+            temp = (temp - mean_data) / range_val
 
         self.targets = labels
         self.data = np.asarray(temp)
         self.data, self.targets = self.convert_to_windows(wsz, stride)
-
-    def normalize3(self, a):
-        if self.train:
-            min_column = np.amin(a, axis=0)
-            max_column = np.amax(a, axis=0)
-            self.min, self.max = min_column, max_column
-        epsilon = 1e-10
-        range_column = (self.max - self.min) + epsilon
-        normalized_array = (a - self.min) / range_column
-        return normalized_array, self.min, self.max
 
     def convert_to_windows(self, w_size, stride):
         windows = []
