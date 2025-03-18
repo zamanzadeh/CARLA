@@ -29,6 +29,8 @@ def set_seed(seed):
 
 set_seed(4)
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 # Parser
 parser = argparse.ArgumentParser(description='pretext')
 parser.add_argument('--config_env',
@@ -49,7 +51,7 @@ def main():
 
     model = get_model(p)
     best_model = None
-    # model = model.cuda()
+    model = model.to(device)
    
     # CUDNN
     # torch.backends.cudnn.benchmark = True
@@ -154,16 +156,17 @@ def main():
     ts_repository_base = TSRepository(len(train_dataset),
                                       p['model_kwargs']['features_dim'],
                                       p['num_classes'], p['criterion_kwargs']['temperature'])
-    # ts_repository_base.cuda()
+    ts_repository_base.to(device)
     ts_repository_val = TSRepository(len(val_dataset),
                                      p['model_kwargs']['features_dim'],
                                      p['num_classes'], p['criterion_kwargs']['temperature'])
-    # ts_repository_val.cuda()
+    ts_repository_val.to(device)
 
     criterion = get_criterion(p)
-    # criterion = criterion.cuda()
+    criterion = criterion.to(device)
 
-    optimizer = get_optimizer(p, model)
+    # optimizer = get_optimizer(p, model)
+    optimizer = torch.optim.Adam(model.parameters(), lr=p['optimizer_kwargs']['lr'])
  
     # Checkpoint
     if os.path.exists(p['pretext_checkpoint']):
@@ -171,13 +174,13 @@ def main():
         checkpoint = torch.load(p['pretext_checkpoint'], map_location='cpu')
         optimizer.load_state_dict(checkpoint['optimizer'])
         model.load_state_dict(checkpoint['model'])
-        # model.cuda()
+        model.to(device)
         start_epoch = checkpoint['epoch']
 
     else:
         print(colored('No checkpoint file at {}'.format(p['pretext_checkpoint']), 'blue'))
         start_epoch = 0
-        # model = model.cuda()
+        model = model.to(device)
     
     # Training
     pretext_best_loss = np.inf
@@ -190,7 +193,7 @@ def main():
         print('Adjusted learning rate to {:.5f}'.format(lr))
         
         # print('EPOCH ----> ', epoch)
-        tmp_loss = pretext_train(train_dataloader, model, criterion, optimizer, epoch, prev_loss)
+        tmp_loss = pretext_train(train_dataloader, model, criterion, optimizer, epoch, prev_loss, device=device)
         
         # Checkpoint
         if tmp_loss <= pretext_best_loss:
@@ -207,7 +210,9 @@ def main():
                                      p['model_kwargs']['features_dim'],
                                      p['num_classes'], p['criterion_kwargs']['temperature']) #need size of repository == 1+num_of_anomalies
     fill_ts_repository(p, base_dataloader, model, ts_repository_base, real_aug = True, ts_repository_aug = ts_repository_aug)
-    out_pre = np.column_stack((ts_repository_base.features, ts_repository_base.targets))
+    # out_pre = np.column_stack((ts_repository_base.features, ts_repository_base.targets))
+    out_pre = np.column_stack((ts_repository_base.features.cpu().numpy(), ts_repository_base.targets.cpu().numpy()))
+
     np.save(p['pretext_features_train_path'], out_pre)
     topk = 10
     print('Mine the nearest neighbors (Top-%d)' %(topk))
@@ -220,7 +225,9 @@ def main():
     print(colored('Fill TS Repository for mining the nearest/furthest neighbors (val) ...', 'blue'))
 
     fill_ts_repository(p, val_dataloader, model, ts_repository_val, real_aug=False, ts_repository_aug=None)
-    out_pre = np.column_stack((ts_repository_val.features, ts_repository_val.targets))
+    # out_pre = np.column_stack((ts_repository_val.features, ts_repository_val.targets))
+    out_pre = np.column_stack((ts_repository_val.features.cpu().numpy(), ts_repository_val.targets.cpu().numpy()))
+
     np.save(p['pretext_features_test_path'], out_pre)
     topk = 10
     print('Mine the nearest and furthest neighbors (Top-%d)' %(topk))

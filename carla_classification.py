@@ -28,6 +28,7 @@ def set_seed(seed):
 
 set_seed(4)
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 FLAGS = argparse.ArgumentParser(description='classification Loss')
 FLAGS.add_argument('--config_env', help='Location of path config file')
@@ -123,7 +124,6 @@ def main():
         val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean,
                                       base_dataset.std)
 
-
     val_dataloader = get_val_dataloader(p, val_dataset)
 
     print(colored('-- Train samples size: %d - Test samples size: %d' %(len(train_dataset), len(val_dataset)), 'green'))
@@ -131,7 +131,7 @@ def main():
     # Model
     model = get_model(p, p['pretext_model'])
     model = torch.nn.DataParallel(model)
-    model = model #.cuda()
+    model = model.to(device)
 
     # Optimizer
     optimizer = get_optimizer(p, model, p['update_cluster_head_only'])
@@ -142,7 +142,7 @@ def main():
 
     # Loss function
     criterion = get_criterion(p)
-    #criterion.cuda()
+    criterion.to(device)
 
     print(colored('\n- Model initialisation', 'green'))
     # Checkpoint

@@ -7,12 +7,12 @@ model_kwargs:
    head: mlp
    features_dim: 4
 res_kwargs:
-  in_channels: 55
+  in_channels: 25
   mid_channels: 4
 
 # Dataset
-train_db_name: MSL
-val_db_name: MSL
+train_db_name: SMAP
+val_db_name: SMAP
 num_classes: 10
 
 # Loss

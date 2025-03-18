@@ -7,7 +7,9 @@ from torch.utils.data import Dataset
 from utils.mypath import MyPath
 import ast
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
+import torch
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class SMD(Dataset):
 
@@ -85,18 +87,18 @@ class SMD(Dataset):
         Returns:
             dict: {'ts': ts, 'target': index of target class, 'meta': dict}
         """
-        ts_org = self.data[index]
+        # ts_org = self.data[index]
+        ts_org = torch.from_numpy(self.data[index]).float().to(device)  # cuda
+
         if len(self.targets) > 0:
-            target = self.targets[index].astype(int)
+            # target = self.targets[index].astype(int)
+            target = torch.tensor(self.targets[index].astype(int), dtype=torch.long).to(device)
             class_name = self.classes[target]
         else:
             target = 0
             class_name = ''
 
         ts_size = (ts_org.shape[0], ts_org.shape[1])
-
-        if self.transform is not None:
-            ts_org = self.transform(ts_org)
 
         out = {'ts_org': ts_org, 'target': target, 'meta': {'ts_size': ts_size, 'index': index, 'class_name': class_name}}
 

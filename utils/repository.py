@@ -95,7 +95,9 @@ class TSRepository(object):
 
         d = features.shape[1]
         index = faiss.IndexFlatL2(d)
-        index.add(features)
+        # index.add(features)
+        index.add(features.cpu().numpy())  # CUDA
+
         xq = np.random.random(d)
         _, ids = index.search(xq.reshape(1, -1).astype(np.float32), len(features))
         sz = ids.shape[1]

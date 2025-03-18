@@ -3,6 +3,9 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 from scipy.spatial.distance import euclidean
+
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
 """ 
     AugmentedDataset
     Returns a ts together with an augmentation.
@@ -31,12 +34,18 @@ class AugmentedDataset(Dataset):
 
     def create_pairs(self):
         mmean, sstd = self.dataset.get_info()
+        mmean = torch.tensor(mmean, dtype=torch.float32).to(device)
+        sstd = torch.tensor(sstd, dtype=torch.float32).to(device)
         # min_data, max_data = self.dataset.get_info()
         # range_val = (max_data - min_data) + 1e-20
         for index in range(len(self.dataset)):
             item = self.dataset.__getitem__(index)
-            ts_org = item['ts_org']
-            ts_trg = item['target']
+            # ts_org = item['ts_org']
+            # ts_trg = item['target']
+            ts_org = item['ts_org'].clone().detach().to(device)
+            ts_trg = item['target'].clone().detach().to(device)
+            
+
 
             # mmean = np.mean(ts_org, axis=0)
             # sstd = np.std(ts_org, axis=0)
@@ -48,12 +57,15 @@ class AugmentedDataset(Dataset):
             if index > 10:
                 rand_nei = np.random.randint(index - 10, index)
                 sample_nei = self.dataset.__getitem__(rand_nei)
-                ts_w_augment = sample_nei['ts_org']
+                # ts_w_augment = sample_nei['ts_org']
+                ts_w_augment = sample_nei['ts_org'].clone().detach().to(device)
             else:
                 ts_w_augment = self.augmentation_transform(ts_org)
 
             ts_ss_augment = self.subseq_anomaly(ts_org)
-            sstd = np.where((sstd == 0.0), 1.0, sstd)
+            # sstd = np.where((sstd == 0.0), 1.0, sstd)
+            sstd = torch.where(sstd == 0.0, torch.tensor(1.0, device=sstd.device), sstd) #CUDA!
+
             self.samples[index] = {
                 'ts_org': (ts_org - mmean) / sstd,
                 'ts_w_augment': (ts_w_augment - mmean) / sstd,
@@ -94,7 +106,7 @@ class NeighborsDataset(Dataset):
             self.neighbor_transform = transform
        
         dataset.transform = None
-        all_data = dataset.data
+        all_data = dataset.data.to(device)
         self.dataset = dataset
 
         NN_indices = N_indices.copy() # Nearest neighbor indices (np.array  [len(dataset) x k])
@@ -104,8 +116,8 @@ class NeighborsDataset(Dataset):
             self.FN_indices = FN_indices[:, -p['num_neighbors']:]
         #assert( int(self.indices.shape[0]/4) == len(self.dataset) )
 
-        self.dataset.data = dataset.data
-        self.dataset.targets = dataset.targets
+        self.dataset.data = dataset.data.to(device)
+        self.dataset.targets = dataset.targets.to(device)
         num_samples = self.dataset.data.shape[0]
         NN_index = np.array([np.random.choice(self.NN_indices[i], 1)[0] for i in range(num_samples)])
         FN_index = np.array([np.random.choice(self.FN_indices[i], 1)[0] for i in range(num_samples)])

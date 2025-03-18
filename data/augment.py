@@ -3,6 +3,9 @@ import random
 import numpy as np
 import torch
 
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 class NoiseTransformation(object):
     def __init__(self, sigma):
         self.sigma = sigma
@@ -11,8 +14,11 @@ class NoiseTransformation(object):
         """
         Adding random Gaussian noise with mean 0
         """
-        noise = np.random.normal(loc=0, scale=self.sigma, size=X.shape)
-        return X + noise
+        if X.device.type == 'cuda':  # Check if X is on GPU
+            X = X.cpu()  # Move tensor to CPU
+        noise = np.random.normal(loc=0, scale=self.sigma, size=X.shape)  # NumPy operation
+        
+        return torch.tensor(X.numpy() + noise, dtype=torch.float32, device=device)  # Move back to GPU
 
 class SubAnomaly(object):
     def __init__(self, portion_len):
@@ -45,7 +51,7 @@ class SubAnomaly(object):
         """
 
         # Clone the input tensor to avoid modifying the original data
-        window = window.copy()
+        window = window.clone() #.copy()
 
         # Set the subsequence_length if not provided
         if subsequence_length is None:
@@ -74,7 +80,8 @@ class SubAnomaly(object):
         anomalous_subsequence = window[start_index:end_index]
 
         # Concatenate the subsequence by the compression factor, and then subsample to compress it
-        anomalous_subsequence = np.tile(anomalous_subsequence, (compression_factor, 1))
+        # anomalous_subsequence = np.tile(anomalous_subsequence, (compression_factor, 1))
+        anomalous_subsequence = anomalous_subsequence.repeat(compression_factor, 1)  # cuda! PyTorch equivalent of np.tile()
         anomalous_subsequence = anomalous_subsequence[::compression_factor]
 
         # Scale the subsequence and replace the original subsequence with the anomalous subsequence
@@ -88,8 +95,9 @@ class SubAnomaly(object):
         anomalous_subsequence = anomalous_subsequence + coef * trend_factor
 
         if shapelet_factor:
-            anomalous_subsequence = window[start_index] + (np.random.rand(len(anomalous_subsequence)) * 0.1).reshape(-1,
-                                                                                                                     1)
+            # anomalous_subsequence = window[start_index] + (np.random.rand(len(anomalous_subsequence)) * 0.1).reshape(-1, 1)
+            anomalous_subsequence = window[start_index] + (torch.rand_like(window[start_index]) * 0.1)  #cuda use!
+
         window[start_index:end_index] = anomalous_subsequence
 
         return np.squeeze(window)
@@ -98,12 +106,12 @@ class SubAnomaly(object):
         """
         Adding sub anomaly with user-defined portion
         """
-        window = X.copy()
-        anomaly_seasonal = window.copy()
-        anomaly_trend = window.copy()
-        anomaly_global = window.copy()
-        anomaly_contextual = window.copy()
-        anomaly_shapelet = window.copy()
+        window = X.clone() #X.copy()
+        anomaly_seasonal = window.clone() #.copy()
+        anomaly_trend = window.clone() #.copy()
+        anomaly_global = window.clone() #.copy()
+        anomaly_contextual = window.clone() #.copy()
+        anomaly_shapelet = window.clone() #.copy()
         min_len = int(window.shape[0] * 0.1)
         max_len = int(window.shape[0] * 0.9)
         subsequence_length = np.random.randint(min_len, max_len)
