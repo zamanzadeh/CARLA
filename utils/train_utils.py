@@ -29,7 +29,12 @@ def pretext_train(train_loader, model, criterion, optimizer, epoch, prev_loss):
         input_ = input_.view(b*3, h, w)
 
         output = model(input_)
-        # output = output.view(b, 3, -1)
+        
+        if prev_loss is not None:
+            loss = criterion(output, prev_loss)
+        else:
+            loss = criterion(output)
+            
         loss = criterion(output, current_loss = prev_loss)
         losses.update(loss.item())
         prev_loss = loss.item()
