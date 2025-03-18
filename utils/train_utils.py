@@ -32,7 +32,7 @@ def pretext_train(train_loader, model, criterion, optimizer, epoch, prev_loss):
         # output = output.view(b, 3, -1)
         loss = criterion(output, current_loss = prev_loss)
         losses.update(loss.item())
-        prev_loss = losses
+        prev_loss = loss.item()
 
         optimizer.zero_grad()
         loss.backward()
@@ -41,7 +41,7 @@ def pretext_train(train_loader, model, criterion, optimizer, epoch, prev_loss):
         if i % 10 == 0:
             progress.display(i)
 
-        return loss
+    return loss
 
 
 def self_sup_classification_train(train_loader, model, criterion, optimizer, epoch, update_cluster_head_only=False):
@@ -75,7 +75,7 @@ def self_sup_classification_train(train_loader, model, criterion, optimizer, epo
         fneighbors = batch['FNeighbor'] #.cuda(non_blocking=True)
         fneighbors = fneighbors.view(b, h, w)
        
-        if update_cluster_head_only: # Only calculate gradient for backprop of linear layer
+        if update_cluster_head_only: # Only calculate gradient for backdrop of linear layer
             with torch.no_grad():
                 anchors_features = model(anchors, forward_pass='backbone')
                 nneighbors_features = model(nneighbors, forward_pass='backbone')
@@ -84,7 +84,7 @@ def self_sup_classification_train(train_loader, model, criterion, optimizer, epo
             nneighbors_output = model(nneighbors_features, forward_pass='head')
             fneighbors_output = model(fneighbors_features, forward_pass='head')
 
-        else: # Calculate gradient for backprop of complete network
+        else: # Calculate gradient for backdrop of complete network
             anchors_output = model(anchors)
             nneighbors_output = model(nneighbors)
             fneighbors_output = model(fneighbors)
