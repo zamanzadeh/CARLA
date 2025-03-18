@@ -229,13 +229,13 @@ def get_val_dataset(p, transform=None, sanomaly=None, to_neighbors_dataset=False
 
 def get_train_dataloader(p, dataset):
     return torch.utils.data.DataLoader(dataset, num_workers=p['num_workers'],
-                                       batch_size=p['batch_size'], pin_memory=True, collate_fn=collate_custom,
+                                       batch_size=p['batch_size'], pin_memory=False, collate_fn=collate_custom,
                                        drop_last=True, shuffle=True)
 
 
 def get_val_dataloader(p, dataset):
     return torch.utils.data.DataLoader(dataset, num_workers=p['num_workers'],
-                                       batch_size=p['batch_size'], pin_memory=True, collate_fn=collate_custom,
+                                       batch_size=p['batch_size'], pin_memory=False, collate_fn=collate_custom,
                                        drop_last=False, shuffle=False)
 
 

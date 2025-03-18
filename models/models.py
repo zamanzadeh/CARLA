@@ -2,6 +2,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class ContrastiveModel(nn.Module):
     def __init__(self, backbone, head='mlp', features_dim=128):

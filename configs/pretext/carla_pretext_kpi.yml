@@ -1,0 +1,41 @@
+# Setup
+setup: pretext
+
+# Model
+backbone: resnet_ts
+model_kwargs:
+   head: mlp
+   features_dim: 4
+res_kwargs:
+  in_channels: 1
+  mid_channels: 4
+
+# Dataset
+train_db_name: kpi
+val_db_name: kpi
+num_classes: 10
+
+# Loss
+criterion: pretext
+criterion_kwargs:
+   temperature: 0.4
+
+# Hyperparameters
+epochs: 30
+optimizer: adam
+optimizer_kwargs:
+   lr: 0.001
+   weight_decay: 0.01
+scheduler: cosine
+scheduler_kwargs:
+   lr_decay_rate: 0.01
+batch_size: 50
+num_workers: 0
+
+# Transformations
+augmentation_strategy: ts
+transformation_kwargs:
+   noise_sigma: 0.01
+
+anomaly_kwargs:
+   portion: 0.99

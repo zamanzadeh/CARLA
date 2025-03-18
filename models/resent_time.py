@@ -2,7 +2,7 @@
 import torch
 from torch import nn
 import torch.nn.functional as F
-
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 class Conv1dSamePadding(nn.Conv1d):
     """Represents the "Same" padding functionality from Tensorflow.

@@ -99,12 +99,15 @@ def get_predictions(p, dataloader, model, return_features=False, is_training=Fal
     if return_features:
         feat_np = features.numpy()  # save features in csv
         fhdr = [str(x) for x in range(feat_np.shape[1])] + ['Class']
-        feat_np = np.hstack((feat_np, np.array(targets)[np.newaxis].T))
+        # feat_np = np.hstack((feat_np, np.array(targets)[np.newaxis].T)) CUDA
+        feat_np = np.hstack((feat_np, np.array(targets.cpu().numpy())[np.newaxis].T)) 
+
         feat_df = pd.DataFrame(feat_np, columns=fhdr)
 
         prob_np = np.array(out[0]['probabilities'])
         phdr = [str(x) for x in range(prob_np.shape[1])] + ['Class']
-        prob_np = np.hstack((prob_np, np.array(targets)[np.newaxis].T))
+        # prob_np = np.hstack((prob_np, np.array(targets)[np.newaxis].T))
+        prob_np = np.hstack((prob_np, np.array(targets.cpu().numpy())[np.newaxis].T)) 
         prob_df = pd.DataFrame(prob_np, columns=phdr)
 
         if is_training:
@@ -177,7 +180,8 @@ def pr_evaluate(all_predictions, class_names=None,
     num_elems = targets.size(0)
 
     scores = 1-np.array(probs)[:,majority_label]
-    labels = np.array(targets).tolist()
+    # labels = np.array(targets).tolist() CUDA
+    labels = np.array(targets.cpu().numpy()).tolist()
 
     precision, recall, thresholds = precision_recall_curve(labels, scores, pos_label=1)
     try:
