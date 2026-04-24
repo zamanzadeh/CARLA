@@ -8,24 +8,27 @@ class MyPath(object):
         db_names = {'msl', 'smap', 'smd', 'power', 'yahoo', 'kpi', 'swat', 'wadi', 'gecco', 'swan', 'ucr'}
         assert(database in db_names)
 
+        dataset_root = os.environ.get('CARLA_DATA_ROOT', r'd:\CARLA\datasets')
+
+
         if database == 'msl' or database == 'smap':
-            return '/home/zahraz/hz18_scratch/zahraz/datasets/MSL_SMAP'
+            return os.path.join(dataset_root, 'MSL_SMAP')
         elif database == 'ucr':
-            return '/home/zahraz/hz18_scratch/zahraz/datasets/UCR'
+            return os.path.join(dataset_root, 'UCR')
         elif database == 'yahoo':
-            return '/home/zahraz/hz18_scratch/zahraz/datasets/Yahoo'
+            return os.path.join(dataset_root, 'Yahoo')
         elif database == 'smd':
-            return '/home/zahraz/hz18_scratch/zahraz/datasets/SMD'
+            return os.path.join(dataset_root, 'SMD')
         elif database == 'swat':
-            return '/home/zahraz/hz18_scratch/zahraz/datasets/SWAT'
+            return os.path.join(dataset_root, 'SWAT')
         elif database == 'wadi':
-            return '/home/zahraz/hz18_scratch/zahraz/datasets/WADI'
+            return os.path.join(dataset_root, 'WADI')
         elif database == 'kpi':
-            return '/home/zahraz/hz18_scratch/zahraz/datasets/KPI'
+            return os.path.join(dataset_root, 'KPI')
         elif database == 'swan':
-            return '/home/zahraz/hz18_scratch/zahraz/datasets/Swan'
+            return os.path.join(dataset_root, 'Swan')
         elif database == 'gecco':
-            return '/home/zahraz/hz18_scratch/zahraz/datasets/GECCO'
-        
+            return os.path.join(dataset_root, 'GECCO')
+
         else:
             raise NotImplementedError

@@ -56,7 +56,7 @@ def get_model(p, pretrain_path=None):
 
     # Load pretrained weights
     if pretrain_path is not None and os.path.exists(pretrain_path):
-        state = torch.load(pretrain_path, map_location='cpu')
+        state = torch.load(pretrain_path, map_location='cpu', weights_only=False)
 
         if p['setup'] == 'classification':  # Weights are supposed to be transfered from contrastive training
             missing = model.load_state_dict(state, strict=False)
@@ -156,7 +156,7 @@ def get_train_dataset(p, transform, sanomaly, to_augmented_dataset=False,
 
 
 def get_aug_train_dataset(p, transform, to_neighbors_dataset=False):
-    dataloader = torch.load(p['contrastive_dataset'])
+    dataloader = torch.load(p['contrastive_dataset'], weights_only=False)
     if to_neighbors_dataset:  # Dataset returns a ts and one of its nearest neighbors.
         from data.custom_dataset import NeighborsDataset
         N_indices = np.load(p['topk_neighbors_train_path'])

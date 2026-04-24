@@ -2,7 +2,7 @@
 import torch
 import numpy as np
 import collections
-from torch._six import string_classes
+# from torch._six import string_classes
 
 
 """ Custom collate function """
@@ -22,7 +22,7 @@ def collate_custom(batch):
     elif isinstance(batch[0], float):
         return torch.FloatTensor(batch)
 
-    elif isinstance(batch[0], string_classes):
+    elif isinstance(batch[0], str):
         return batch
 
     elif isinstance(batch[0], collections.abc.Mapping):
