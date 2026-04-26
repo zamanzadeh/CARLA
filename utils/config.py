@@ -34,7 +34,7 @@ def create_config(config_file_env, config_file_exp, fname):
     cfg['pretext_features_test_path'] = os.path.join(pretext_dir, 'pretext_features_test.npy')
     cfg['topk_neighbors_val_path'] = os.path.join(pretext_dir, 'topk-test-neighbors.npy')
     cfg['bottomk_neighbors_val_path'] = os.path.join(pretext_dir, 'bottomk-test-neighbors.npy')
-    cfg['bottomk_neighbors_val_path'] = os.path.join(pretext_dir, 'bottomk-test-neighbors.npy')
+ #  cfg['bottomk_neighbors_val_path'] = os.path.join(pretext_dir, 'bottomk-test-neighbors.npy')
     cfg['contrastive_dataset'] = os.path.join(pretext_dir, 'con_train_dataset.pth')
 
 
@@ -46,9 +46,9 @@ def create_config(config_file_env, config_file_exp, fname):
         cfg['classification_dir'] = classification_dir
         cfg['classification_checkpoint'] = os.path.join(classification_dir, 'checkpoint.pth.tar')
         cfg['classification_model'] = os.path.join(classification_dir, 'model.pth.tar')
-        cfg['classification_trainfeatures'] = os.path.join(classification_dir, 'classification_traintfeatures.csv')
+        cfg['classification_trainfeatures'] = os.path.join(classification_dir, 'classification_trainfeatures.csv')
         cfg['classification_trainprobs'] = os.path.join(classification_dir, 'classification_trainprobs.csv')
-        cfg['classification_testfeatures'] = os.path.join(classification_dir, 'classification_testtfeatures.csv')
+        cfg['classification_testfeatures'] = os.path.join(classification_dir, 'classification_testfeatures.csv')
         cfg['classification_testprobs'] = os.path.join(classification_dir, 'classification_testprobs.csv')
 
     return cfg 
