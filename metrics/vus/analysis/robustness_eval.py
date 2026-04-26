@@ -331,7 +331,7 @@ def generate_curve(label,score,slidingWindow):
     
     return Y, Z, X, X_ap, W, Z_ap,avg_auc_3d, avg_ap_3d
 
-def box_plot(data, edge_color, fill_color):
+""" def box_plot(data, edge_color, fill_color):
     bp = ax.boxplot(data, patch_artist=True)
     
     for element in ['boxes', 'whiskers', 'fliers', 'means', 'medians', 'caps']:
@@ -340,4 +340,4 @@ def box_plot(data, edge_color, fill_color):
     for patch in bp['boxes']:
         patch.set(facecolor=fill_color)       
         
-    return bp
+    return bp """

@@ -1,6 +1,7 @@
 arch
-faiss-cpu
 easydict
+faiss-cpu
+hurst
 matplotlib
 numpy
 pandas
@@ -13,3 +14,5 @@ torch
 torchaudio
 torchmetrics
 torchvision
+tqdm
+tsfresh

@@ -21,16 +21,16 @@ from metrics.vus.utils.metrics import metricor
 
 from metrics.vus.models.distance import Fourier
 from metrics.vus.models.feature import Window
-from metrics.vus.models.cnn import cnn
-from metrics.vus.models.AE_mlp2 import AE_MLP2
-from metrics.vus.models.lstm import lstm
-from metrics.vus.models.ocsvm import OCSVM
-from metrics.vus.models.poly import POLY
-from metrics.vus.models.pca import PCA
-from metrics.vus.models.norma import NORMA
-from metrics.vus.models.matrix_profile import MatrixProfile
-from metrics.vus.models.lof import LOF
-from metrics.vus.models.iforest import IForest
+# from metrics.vus.models.cnn import cnn
+# from metrics.vus.models.AE_mlp2 import AE_MLP2
+# from metrics.vus.models.lstm import lstm
+# from metrics.vus.models.ocsvm import OCSVM
+# from metrics.vus.models.poly import POLY
+# from metrics.vus.models.pca import PCA
+# from metrics.vus.models.norma import NORMA
+# from metrics.vus.models.matrix_profile import MatrixProfile
+# from metrics.vus.models.lof import LOF
+# from metrics.vus.models.iforest import IForest
 
 def find_section_length(label,length):
     best_i = None
@@ -89,7 +89,7 @@ def generate_data(filepath,init_pos,max_length):
     
     return pos_first_anom,slidingWindow,data,X_data,data_train,data_test,X_train,X_test,label
 
-def compute_score(methods,slidingWindow,data,X_data,data_train,data_test,X_train,X_test):
+""" def compute_score(methods,slidingWindow,data,X_data,data_train,data_test,X_train,X_test):
     
     methods_scores = {}
     for method in methods:
@@ -185,7 +185,7 @@ def compute_score(methods,slidingWindow,data,X_data,data_train,data_test,X_train
         #print(method,"\t time: {}".format(time_exec))
         methods_scores[method] = score
         
-    return methods_scores
+    return methods_scores """
 
 
 
