@@ -1,0 +1,44 @@
+# setup
+setup: classification
+
+# Loss
+criterion: classification
+criterion_kwargs:
+   entropy_weight: 2
+   inconsistency_weight: 0
+
+# Weight update
+update_cluster_head_only: False # Update full network in classification
+num_heads: 1 # Only use one head
+
+# Model
+backbone: resnet_ts
+res_kwargs:
+  in_channels: 55
+  mid_channels: 4
+
+# Dataset
+train_db_name: MSL
+val_db_name: MSL
+num_classes: 10
+num_neighbors: 5
+
+# Transformations
+augmentation_strategy: ts
+transformation_kwargs:
+   noise_sigma: 0.01
+
+# Hyperparameters
+optimizer: adam
+optimizer_kwargs:
+   lr: 0.01
+   weight_decay: 0.001
+epochs: 50
+batch_size: 50
+num_workers: 0
+
+# Scheduler
+scheduler: constant
+
+anomaly_kwargs:
+   portion: 0.99
