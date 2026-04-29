@@ -14,11 +14,19 @@ class NoiseTransformation(object):
         """
         Adding random Gaussian noise with mean 0
         """
+
+        """
         if X.device.type == 'cuda':  # Check if X is on GPU
             X = X.cpu()  # Move tensor to CPU
         noise = np.random.normal(loc=0, scale=self.sigma, size=X.shape)  # NumPy operation
+        """
+
+        noise = torch.normal(0, self.sigma, size=X.shape, device=X.device)
+        return X + noise
         
+        """
         return torch.tensor(X.numpy() + noise, dtype=torch.float32, device=device)  # Move back to GPU
+        """
 
 class SubAnomaly(object):
     def __init__(self, portion_len):
@@ -65,8 +73,15 @@ class SubAnomaly(object):
 
         # Set the scale_factor if not provided
         if scale_factor is None:
+            
             scale_factor = np.random.uniform(0.1, 2.0, window.shape[1])
+            """""
+
+            scale_factor = torch.rand(window.shape[1], device=window.device) * 1.9 + 0.1
+
+            """
             print('test')
+          
 
         # Randomly select the start index for the subsequence
         if start_index is None:
@@ -100,7 +115,7 @@ class SubAnomaly(object):
 
         window[start_index:end_index] = anomalous_subsequence
 
-        return np.squeeze(window)
+        return window.squeeze()  # Remove the extra dimension if the input was 1D
 
     def __call__(self, X):
         """
@@ -118,7 +133,14 @@ class SubAnomaly(object):
         start_index = np.random.randint(0, len(window) - subsequence_length)
         if (window.ndim > 1):
             num_features = window.shape[1]
+
+            """
             num_dims = np.random.randint(int(num_features/10), int(num_features/2)) #(int(num_features/5), int(num_features/2))
+            """
+            low = max(1, int(num_features/10))
+            high = max(low+1, int(num_features/2))
+            num_dims = np.random.randint(low, high)
+
             for k in range(num_dims):
                 i = np.random.randint(0, num_features)
                 temp_win = window[:, i].reshape((window.shape[0], 1))
