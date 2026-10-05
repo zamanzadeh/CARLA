@@ -141,17 +141,17 @@ def classification_evaluate(predictions):
         entropy_loss = entropy(torch.mean(probs, dim=0), input_as_probabilities=True).item()
 
         # Consistency loss
-        similarity = torch.matmul(probs, probs.t())
-        neighbors = neighbors.contiguous().view(-1)
-        anchors = org_anchors.contiguous().view(-1)
-        similarity = similarity[anchors, neighbors]
+        # Avoid full N×N matmul (→ OOM for large N like SGCC with 600K+ windows).
+        # (probs @ probs.T)[a, b] == (probs[a] * probs[b]).sum(-1)  — identical values,
+        # but only allocates (N*k, num_classes) instead of (N, N).
+        neighbors_flat = neighbors.contiguous().view(-1)
+        anchors_flat = org_anchors.contiguous().view(-1)
+        similarity = (probs[anchors_flat] * probs[neighbors_flat]).sum(dim=-1)
         ones = torch.ones_like(similarity)
         consistency_loss = F.binary_cross_entropy(similarity, ones).item()
 
-        similarity = torch.matmul(probs, probs.t())
-        fneighbors = fneighbors.contiguous().view(-1)
-        anchors = org_anchors.contiguous().view(-1)
-        similarity = similarity[anchors, fneighbors]
+        fneighbors_flat = fneighbors.contiguous().view(-1)
+        similarity = (probs[anchors_flat] * probs[fneighbors_flat]).sum(dim=-1)
         ones = torch.ones_like(similarity)
         inconsistency_loss = F.binary_cross_entropy(similarity, ones).item()
 

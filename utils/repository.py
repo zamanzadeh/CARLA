@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 from sklearn.neighbors import NearestNeighbors
-import faiss
 
 class TSRepository(object):
     def __init__(self, n, dim, num_classes, temperature):
@@ -71,38 +70,44 @@ class TSRepository(object):
             return k_furthest_neighbours, k_nearest_neighbours
 
     def furthest_nearest_neighbors(self, topk):
-        features = self.features
+        """
+        Compute per-sample k-nearest and k-furthest neighbors.
 
-        # # Compute pairwise distances
-        # distances = torch.cdist(features, features)
-        #
-        # # Find indices of k nearest neighbors for each feature
-        # _, nearest_indices = distances.topk(topk + 1, largest=False, dim=1)
-        # k_nearest_neighbours = nearest_indices[:, 1:]  # exclude self as nearest neighbor
-        #
-        # # Find indices of k furthest neighbors for each feature
-        # _, furthest_indices = distances.topk(topk, largest=True, dim=1)
-        # k_furthest_neighbours = furthest_indices[:, :]
+        Uses torch.cdist for pairwise distances (batched to avoid OOM on large datasets).
+        Returns:
+            k_furthest_neighbours: np.ndarray of shape (n, topk) — indices of furthest neighbors
+            k_nearest_neighbours:  np.ndarray of shape (n, topk) — indices of nearest neighbors
+        """
+        features = self.features.cpu()  # (n, d)
+        n = features.shape[0]
+        BATCH = 2048  # process rows in chunks to keep memory bounded
 
-        # index = nmslib.init(method='hnsw', space='12')
-        # index.addDataPointBatch(features)
-        # index.createIndex({'post':2}, prin_progress = True)
-        # ids , distances = index.knnQueryBatch(features, k=len(features), num_threads=4)
-        #
-        # k_furthest_neighbours = ids[:, -1:]
-        # k_nearest_neighbours = ids[:, 1:]
+        all_near = []
+        all_far  = []
 
+        for start in range(0, n, BATCH):
+            end = min(start + BATCH, n)
+            batch = features[start:end]                        # (b, d)
 
-        d = features.shape[1]
-        index = faiss.IndexFlatL2(d)
-        # index.add(features)
-        index.add(features.cpu().numpy())  # CUDA
+            # Pairwise L2 distances between this batch and all samples
+            with torch.no_grad():
+                dists = torch.cdist(batch, features, p=2)     # (b, n)
 
-        xq = np.random.random(d)
-        _, ids = index.search(xq.reshape(1, -1).astype(np.float32), len(features))
-        sz = ids.shape[1]
-        k_furthest_neighbours = ids.reshape(sz, 1)[::-1]
-        k_nearest_neighbours = ids[:, :].reshape(sz, 1)
+            # --- k-nearest: set self-distance to inf so it is never picked ---
+            for i in range(end - start):
+                dists[i, start + i] = float('inf')
+            _, near_ids = torch.topk(dists, topk, dim=1, largest=False)  # (b, topk)
+
+            # --- k-furthest: restore self-distance to -inf so it is never picked ---
+            for i in range(end - start):
+                dists[i, start + i] = float('-inf')
+            _, far_ids = torch.topk(dists, topk, dim=1, largest=True)    # (b, topk)
+
+            all_near.append(near_ids.numpy())
+            all_far.append(far_ids.numpy())
+
+        k_nearest_neighbours  = np.vstack(all_near)   # (n, topk)
+        k_furthest_neighbours = np.vstack(all_far)    # (n, topk)
 
         return k_furthest_neighbours, k_nearest_neighbours
 

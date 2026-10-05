@@ -1,0 +1,55 @@
+# ──────────────────────────────────────────────────────────────
+#  CARLA Classification — SGCC LARGE  (42K consumers, window=365, stride=14)
+#  Target: selesai < 30 menit
+# ──────────────────────────────────────────────────────────────
+
+# Setup
+setup: classification
+
+# Loss
+criterion: classification
+criterion_kwargs:
+  entropy_weight: 2
+  inconsistency_weight: 1
+
+# Weight update
+update_cluster_head_only: False
+num_heads: 1
+
+# Model
+backbone: resnet_ts
+res_kwargs:
+  in_channels: 1          # SGCC: 1 fitur (kWh harian)
+  mid_channels: 4
+
+# Dataset
+train_db_name: sgcc_large
+val_db_name: sgcc_large
+num_classes: 10
+num_neighbors: 5
+
+# Windowing — HARUS SAMA dengan carla_pretext_sgcc_large.yml
+window_size: 365
+stride: 14
+
+# Transformations
+augmentation_strategy: ts
+transformation_kwargs:
+  noise_sigma: 0.01
+
+# Hyperparameters
+optimizer: adam
+optimizer_kwargs:
+  lr: 0.01
+  weight_decay: 0.001
+epochs: 15                # hemat waktu; model pretext sudah cukup matang
+batch_size: 256
+num_workers: 0            # Windows: hindari multiprocessing deadlock
+
+# Scheduler
+scheduler: constant
+
+# Anomaly injection — HARUS SAMA dengan carla_pretext_sgcc_large.yml
+anomaly_kwargs:
+  portion: 0.99
+  type: theft

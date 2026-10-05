@@ -3,7 +3,7 @@ import math
 import numpy as np
 import torch
 import torchvision.transforms as transforms
-from data.augment import NoiseTransformation, SubAnomaly
+from data.augment import NoiseTransformation, SubAnomaly, ElectricityTheftAttack, MixedAnomaly
 from utils.collate import collate_custom
 
 
@@ -94,6 +94,35 @@ def get_train_dataset(p, transform, sanomaly, to_augmented_dataset=False,
                       mean_data=None, std_data=None)
         mean, std = dataset.get_info()
 
+    elif p['train_db_name'] == 'lead':
+        from data.LEAD import LEAD
+        dataset = LEAD(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                       mean_data=None, std_data=None)
+        mean, std = dataset.get_info()
+
+    elif p['train_db_name'] == 'pln':
+        from data.PLN import PLN
+        dataset = PLN(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                      mean_data=None, std_data=None)
+        mean, std = dataset.get_info()
+
+    elif p['train_db_name'] == 'sgcc':
+        from data.SGCC import SGCC
+        dataset = SGCC(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                       mean_data=None, std_data=None,
+                       window_size=p.get('window_size', 10),
+                       stride=p.get('stride', 1))
+        mean, std = dataset.get_info()
+
+    elif p['train_db_name'] == 'sgcc_large':
+        from data.SGCC import SGCC
+        from utils.mypath import MyPath
+        dataset = SGCC(p['fname'], train=True, transform=transform, sanomaly=sanomaly,
+                       mean_data=None, std_data=None,
+                       root=MyPath.db_root_dir('sgcc_large'),
+                       window_size=p.get('window_size', 365),
+                       stride=p.get('stride', 14))
+        mean, std = dataset.get_info()
 
     else:
         raise ValueError('Invalid train dataset {}'.format(p['train_db_name']))
@@ -138,6 +167,36 @@ def get_val_dataset(p, transform=None, sanomaly=None, to_neighbors_dataset=False
         dataset = SMD(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
                       mean_data=mean_data, std_data=std_data)
 
+    elif p['val_db_name'] == 'lead':
+        from data.LEAD import LEAD
+        dataset = LEAD(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                       mean_data=mean_data, std_data=std_data)
+
+    elif p['val_db_name'] == 'pln':
+        from data.PLN import PLN
+        # PLN selalu self-normalize per file (train dan test adalah file BERBEDA,
+        # bukan belahan waktu dari file yang sama), jadi mean_data/std_data dari
+        # caller sengaja diabaikan di sini.
+        dataset = PLN(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                     mean_data=None, std_data=None)
+
+    elif p['val_db_name'] == 'sgcc':
+        from data.SGCC import SGCC
+        # SGCC sama dengan PLN: self-normalize per consumer, mean_data/std_data diabaikan.
+        dataset = SGCC(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                       mean_data=None, std_data=None,
+                       window_size=p.get('window_size', 10),
+                       stride=p.get('stride', 1))
+
+    elif p['val_db_name'] == 'sgcc_large':
+        from data.SGCC import SGCC
+        from utils.mypath import MyPath
+        dataset = SGCC(p['fname'], train=False, transform=transform, sanomaly=sanomaly,
+                       mean_data=None, std_data=None,
+                       root=MyPath.db_root_dir('sgcc_large'),
+                       window_size=p.get('window_size', 365),
+                       stride=p.get('stride', 14))
+
     else:
         raise ValueError('Invalid validation dataset {}'.format(p['val_db_name']))
 
@@ -152,9 +211,10 @@ def get_val_dataset(p, transform=None, sanomaly=None, to_neighbors_dataset=False
 
 
 def get_train_dataloader(p, dataset):
+    # drop_last=False agar dataset kecil (jumlah window < batch_size) tetap bisa diproses
     return torch.utils.data.DataLoader(dataset, num_workers=p['num_workers'],
                                        batch_size=p['batch_size'], pin_memory=False, collate_fn=collate_custom,
-                                       drop_last=True, shuffle=True)
+                                       drop_last=False, shuffle=True)
 
 
 def get_val_dataloader(p, dataset):
@@ -164,6 +224,34 @@ def get_val_dataloader(p, dataset):
 
 
 def inject_sub_anomaly(p):
+    """
+    Pilih mekanisme injeksi anomali sintetis yang dipakai tahap pretext
+    (kontrastif) & klasifikasi CARLA.
+
+    anomaly_kwargs['type'] (KUNCI BARU, OPSIONAL):
+      - tidak diisi / 'subseq' -> SubAnomaly (PERILAKU ASLI CARLA, generik
+        berbasis frekuensi/shapelet/trend). Ini tetap menjadi DEFAULT, jadi
+        semua konfigurasi lama (SMD/MSL/SMAP/LEAD, atau PLN sebelum novelty
+        ini ditambahkan) berjalan identik seperti sebelumnya - tidak ada
+        breaking change.
+      - 'theft' -> ElectricityTheftAttack, NOVELTY penelitian ini: 6 fungsi
+        serangan pencurian listrik (f1-f6) dari Jokar, Arianpoo, & Leung
+        (2016) / Nabil et al. (2018), dipakai sebagai anomali sintetis yang
+        merepresentasikan pola pencurian listrik nyata (lebih relevan untuk
+        domain load profile listrik dibanding anomali generik).
+      - 'theft+subseq' -> MixedAnomaly: CAMPURAN SubAnomaly + ElectricityTheftAttack.
+        Tiap window yang diinjeksi anomali dipilih secara acak akan memakai
+        salah satu dari dua mekanisme tersebut (rasio diatur lewat
+        anomaly_kwargs['theft_ratio'], default 0.5 = campuran seimbang
+        50/50). Cocok untuk skenario yang ingin model belajar membedakan
+        normal dari KEDUA distribusi anomali sekaligus, bukan hanya satu.
+    """
+    anomaly_type = p['anomaly_kwargs'].get('type', 'subseq')
+    portion = p['anomaly_kwargs'].get('portion', 0.99)
+    if anomaly_type == 'theft':
+        return ElectricityTheftAttack(portion)
+    if anomaly_type == 'theft+subseq':
+        return MixedAnomaly(portion, theft_ratio=p['anomaly_kwargs'].get('theft_ratio', 0.5))
     return SubAnomaly(p['anomaly_kwargs']['portion'])
 
 

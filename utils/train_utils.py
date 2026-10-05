@@ -16,6 +16,8 @@ def pretext_train(train_loader, model, criterion, optimizer, epoch, prev_loss, d
     model.to(device)
     model.train()
 
+    loss = torch.tensor(float('inf'))  # default jika dataloader kosong (dataset < batch_size)
+
     for i, batch in enumerate(train_loader):
         ts_org = batch['ts_org'].float().to(device, non_blocking=True)
         ts_w_augmented = batch['ts_w_augment'].float().to(device, non_blocking=True)

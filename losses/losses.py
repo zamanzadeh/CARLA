@@ -99,12 +99,20 @@ class PretextLoss(nn.Module):
     def forward(self, features, current_loss=None):
         """
         input:
-            - features: hidden feature representation of shape [b, 3, dim]
+            - features: hidden feature representation of shape [b*3, dim]
+              (anchor, positive, negative dikoncatenasi)
 
         output:
             - loss: loss computed according to pretext triplet loss
         """
-        features_org, features_pos, features_subseq = torch.split(features, self.bs, dim=0)
+        # Pakai batch size aktual (bukan self.bs) agar aman untuk batch terakhir
+        # yang bisa lebih kecil dari batch_size ketika drop_last=False
+        actual_bs = features.shape[0] // 3
+        features_org, features_pos, features_subseq = (
+            features[:actual_bs],
+            features[actual_bs : 2 * actual_bs],
+            features[2 * actual_bs :],
+        )
 
         # Normalize features for stable distance computation
         anchor = F.normalize(features_org, dim=-1)

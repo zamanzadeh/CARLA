@@ -40,7 +40,7 @@ To use the code, follow these steps:
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/zamanzadeh/CARLA.git
+git clone https://github.com/maulanakrisna/CARLA.git
 cd CARLA
 ```
 
@@ -93,20 +93,143 @@ carla_classification.py --config_env configs/env.yml --config_exp configs/classi
 You can modify the `carla_pretext_msl.yml` and `carla_classification_msl.yml` files to adjust the model parameters, dataset paths, and other settings.
 
 #### Example of running the end-to-end training and evaluation on MSL dataset:
+# Training
+python run_msl.py --channels C-1        # MSL satu channel
+python run_smap.py --channels A-1       # SMAP satu channel
+python run_msl.py                       # semua MSL
+python run_smap.py                      # semua SMAP
 
-```python
-import os
-import pandas
+# Satu machine (untuk testing cepat)
+python run_smd.py --machines machine-1-1.txt
 
-with open('datasets/MSL_SMAP/labeled_anomalies.csv', 'r') as file:
-    csv_reader = pandas.read_csv(file, delimiter=',')
-    
-data_info = csv_reader[csv_reader['spacecraft'] == 'MSL']
-for file_name in data_info['chan_id']:
-    print(file_name)
-    %run -i 'carla_pretext.py' --config_env configs/env.yml --config_exp configs/pretext/carla_pretext_msl.yml --fname $file_name
-    %run -i 'carla_classification.py' --config_env configs/env.yml --config_exp configs/classification/carla_classification_msl.yml --fname $file_name
+# Beberapa machine
+python run_smd.py --machines machine-1-1.txt machine-2-3.txt machine-3-5.txt
+
+# Semua 28 machine
+python run_smd.py
+
+python run_lead.py --buildings 1.npy            # satu building
+python run_lead.py                              # semua building
+
+
+# Evaluasi
+python evaluate.py --dataset MSL --channel C-1
+python evaluate.py --dataset SMAP --channel A-1
+python evaluate.py --dataset MSL        # rata-rata semua MSL
+python evaluate.py --dataset SMAP       # rata-rata semua SMAP
 ```
+# Satu machine
+python evaluate.py --dataset SMD --channel machine-1-1.txt
+
+# Beberapa machine
+python evaluate.py --dataset SMD --channel machine-1-1.txt machine-2-3.txt
+
+# Semua machine + rata-rata
+python evaluate.py --dataset SMD
+
+# Dengan threshold manual
+python evaluate.py --dataset SMD --channel machine-1-1.txt --threshold 0.6
+
+python evaluate.py --dataset LEAD --channel 1.npy
+```
+
+### PT PLN dataset (label per FILE, bukan per timestamp)
+
+Beda dengan dataset lain (MSL/SMAP/SMD/LEAD), data PLN tidak punya label per
+timestamp/window — labelnya hanya tersedia per FILE (satu load profile
+pelanggan/feeder/trafo = normal atau anomali). Karena itu PLN punya
+preprocessing dan pipeline run/evaluate sendiri: model dilatih dari KUMPULAN
+file normal yang dipool jadi satu model bersama (`fname='All'`), lalu
+dievaluasi di level file (skor per window diagregasi jadi satu skor per file).
+
+#### 1. Preprocessing
+
+```bash
+python preprocess_pln.py --raw_dir datasets/PLN/raw --train_frac 0.8 --val_frac 0.5
+```
+
+Input yang dibutuhkan di `datasets/PLN/raw/`:
+- `{fname}.csv` — satu file per load profile, kolom timestamp (auto di-drop)
+  + kolom numerik (kVA, kWh, arus, tegangan, dst).
+- `labels.csv` — kolom `fname,label` (0 = normal, 1 = anomali, untuk SELURUH
+  file itu).
+
+Output ke `datasets/PLN/processed/`, dibagi 3 (train/val/test) TANPA overlap
+file antar list:
+- `data/{fname}.npy`, `file_labels.csv`.
+- `train_list.txt` — `train_frac` dari file normal, dipool untuk training.
+- `val_list.txt` — sisa file normal + sebagian file anomali (porsi diatur
+  `--val_frac`, proporsional per kelas), dipakai **hanya** untuk memilih
+  checkpoint terbaik selama training (bukan untuk training itu sendiri).
+- `test_list.txt` — sisa file held-out lainnya (terpisah total dari val),
+  dipakai **hanya** oleh `evaluate.py` di akhir — tidak pernah dilihat selama
+  training, supaya metrik akhir tidak bias optimis (data leakage).
+
+Opsi lain: `--out_dir`, `--labels_csv`, `--val_frac` (default `0.5`, fraksi
+dari file held-out yang masuk val vs test), `--seed`.
+
+Setiap run otomatis menyimpan log lengkap (shape per file, warning
+NaN/kolom non-numerik, hasil train/val/test split) ke file `.txt` dengan nama
+unik (timestamp) di `results/logs/preprocess_pln_{timestamp}.txt`, supaya
+tiap run punya jejak tertulis sendiri dan tidak saling menimpa.
+
+#### 2. Training (pretext + classification)
+
+```bash
+python run_pln.py
+```
+
+Menjalankan pretext stage lalu classification stage berurutan dengan
+`fname=All` (model bersama, bukan per file), memakai config di
+`configs/pretext/carla_pretext_pln.yml` dan
+`configs/classification/carla_classification_pln.yml`. Checkpoint tersimpan
+di `results/pln/All/` (atau `results/pln/All_{type}/` — lihat di bawah).
+Selama training, checkpoint terbaik (`best_f1`) dipilih berdasarkan
+`val_list.txt` — bukan `test_list.txt` — supaya `evaluate.py` di akhir
+mengevaluasi pada data yang benar-benar belum pernah dilihat model.
+
+Log lengkap (output kedua stage, termasuk epoch/loss training) otomatis
+tersimpan dengan nama unik di
+`results/logs/run_pln_{All atau All_theft}_{timestamp}.txt`.
+
+#### 3. Evaluasi
+
+```bash
+python evaluate.py --dataset PLN
+python evaluate.py --dataset PLN --agg max         # agregasi skor window->file: mean (default)/max/pct
+python evaluate.py --dataset PLN --threshold 0.6    # threshold manual (default: cari threshold terbaik)
+```
+
+Hasil tersimpan otomatis ke `results/eval/eval_PLN_{All atau All_theft}_{agg}_{timestamp}.txt` dan `.csv`
+berisi skor + prediksi per file test.
+
+#### Toggle tipe anomali sintetis (`anomaly_kwargs.type`)
+
+Di `configs/pretext/carla_pretext_pln.yml` dan
+`configs/classification/carla_classification_pln.yml`, key `anomaly_kwargs.type`
+menentukan cara anomali sintetis dibuat saat training:
+
+- `subseq` (default, atau hapus key ini) — perilaku CARLA original
+  (`SubAnomaly` generik).
+- `theft` — pakai `ElectricityTheftAttack` (6 fungsi serangan pencurian
+  listrik f1-f6, Jokar et al. 2016 / Nabil et al. 2018) yang lebih relevan
+  untuk skenario PLN.
+- `theft+subseq` — campuran keduanya (`MixedAnomaly`): tiap window anomali
+  dipilih secara acak memakai `SubAnomaly` ATAU `ElectricityTheftAttack`,
+  dengan rasio diatur lewat `anomaly_kwargs.theft_ratio` (default `0.5` =
+  campuran seimbang 50/50, mis. `theft_ratio: 0.3` -> 30% theft / 70% subseq).
+
+Kedua config (pretext & classification) harus diisi nilai yang SAMA. Ganti
+nilai ini lalu jalankan ulang `python run_pln.py` untuk melatih model baru —
+checkpoint, nama file log, dan nama file hasil evaluasi otomatis mendapat tag
+sesuai tipe yang aktif (`All` untuk `subseq`, `All_theft` untuk `theft`,
+`All_theft+subseq` untuk `theft+subseq`, dst), jadi model/log/hasil evaluasi
+dari tipe yang berbeda tidak akan saling menimpa dan bisa langsung
+dibandingkan satu sama lain.
+
+python run_sgcc_large.py               # full pipeline, ~47 menit
+python run_sgcc_large.py --skip_preprocess  # skip preprocess kalau processed_large/ sudah ada
+python evaluate.py --dataset SGCC_LARGE    # evaluate saja
 
 ## Dataset
 

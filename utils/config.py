@@ -13,14 +13,31 @@ def create_config(config_file_env, config_file_exp, fname):
         config = yaml.safe_load(stream)
     
     cfg = EasyDict()
-   
+
     # Copy
     for k, v in config.items():
         cfg[k] = v
 
+    # NOVELTY-AWARE PATH SUFFIX (backward compatible):
+    # Sebelumnya, direktori checkpoint dibentuk HANYA dari train_db_name + fname.
+    # Akibatnya, melatih PLN dengan anomaly_kwargs.type='theft' lalu 'subseq' (atau
+    # sebaliknya) menulis ke path checkpoint yang SAMA PERSIS -> run kedua menimpa
+    # model run pertama, dan evaluate.py selalu membaca model TERAKHIR yang dilatih,
+    # bukan model yang sesuai konfigurasi yang sedang dievaluasi. Ini membuat hasil
+    # evaluasi 'theft' vs 'subseq' tampak identik (sebenarnya cuma 1 model yang ada).
+    #
+    # Fix: tambahkan suffix ke nama folder HANYA kalau anomaly_kwargs.type diisi
+    # dengan nilai selain default 'subseq'. Kalau key 'type' tidak ada sama sekali
+    # (semua config lama: SMD/MSL/SMAP/LEAD, atau config PLN sebelum novelty ini),
+    # suffix kosong -> path checkpoint identik dengan sebelumnya, TIDAK ada breaking
+    # change untuk eksperimen/checkpoint yang sudah ada.
+    anomaly_type = cfg.get('anomaly_kwargs', {}).get('type', 'subseq')
+    dir_suffix = '' if anomaly_type in (None, 'subseq') else '_{}'.format(anomaly_type)
+    dir_fname = fname + dir_suffix
+
     # Set paths for pretext task (These directories are needed in every stage)
     base_dir = os.path.join(root_dir, cfg['train_db_name'])
-    pretext_dir = os.path.join(base_dir, fname+'/pretext')
+    pretext_dir = os.path.join(base_dir, dir_fname+'/pretext')
     mkdir_if_missing(base_dir)
     mkdir_if_missing(pretext_dir)
     cfg['pretext_dir'] = pretext_dir
@@ -40,7 +57,7 @@ def create_config(config_file_env, config_file_exp, fname):
 
     if cfg['setup'] in ['classification']:
         base_dir = os.path.join(root_dir, cfg['train_db_name'])
-        classification_dir = os.path.join(base_dir, fname+ '/classification')
+        classification_dir = os.path.join(base_dir, dir_fname+ '/classification')
         mkdir_if_missing(base_dir)
         mkdir_if_missing(classification_dir)
         cfg['classification_dir'] = classification_dir

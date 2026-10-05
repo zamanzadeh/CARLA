@@ -1,235 +1,435 @@
-
 import random
-import numpy as np
 import torch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
+# =========================
+# Gaussian Noise Augmentation
+# =========================
 class NoiseTransformation(object):
-    def __init__(self, sigma):
+    def __init__(self, sigma: float):
         self.sigma = sigma
 
-    def __call__(self, X):
-        """
-        Adding random Gaussian noise with mean 0
-        """
-
-        """
-        if X.device.type == 'cuda':  # Check if X is on GPU
-            X = X.cpu()  # Move tensor to CPU
-        noise = np.random.normal(loc=0, scale=self.sigma, size=X.shape)  # NumPy operation
-        """
-
-        noise = torch.normal(0, self.sigma, size=X.shape, device=X.device)
+    def __call__(self, X: torch.Tensor) -> torch.Tensor:
+        noise = torch.normal(
+            mean=0.0,
+            std=self.sigma,
+            size=X.shape,
+            device=X.device
+        )
         return X + noise
-        
-        """
-        return torch.tensor(X.numpy() + noise, dtype=torch.float32, device=device)  # Move back to GPU
-        """
 
+
+# =========================
+# Subsequence Anomaly Injection
+# =========================
 class SubAnomaly(object):
-    def __init__(self, portion_len):
+    def __init__(self, portion_len: float = 0.5):
         self.portion_len = portion_len
 
-    def inject_frequency_anomaly(self, window,
-                                 subsequence_length: int= None,
-                                 compression_factor: int = None,
-                                 scale_factor: float = None,
-                                 trend_factor: float = None,
-                                 shapelet_factor: bool = False,
-                                 trend_end: bool = False,
-                                 start_index: int = None
-                                 ):
-        """
-        Injects an anomaly into a multivariate time series window by manipulating a
-        subsequence of the window.
+    def inject_frequency_anomaly(
+        self,
+        window: torch.Tensor,
+        subsequence_length: int = None,
+        compression_factor: int = None,
+        scale_factor: torch.Tensor = None,
+        trend_factor: float = None,
+        shapelet_factor: bool = False,
+        trend_end: bool = False,
+        start_index: int = None
+    ) -> torch.Tensor:
 
-        :param window: The multivariate time series window represented as a 2D tensor.
-        :param subsequence_length: The length of the subsequence to manipulate. If None,
-                                   the length is chosen randomly between 20% and 90% of
-                                   the window length.
-        :param compression_factor: The factor by which to compress the subsequence.
-                                   If None, the compression factor is randomly chosen
-                                   between 2 and 5.
-        :param scale_factor: The factor by which to scale the subsequence. If None,
-                             the scale factor is chosen randomly between 0.1 and 2.0
-                             for each feature in the multivariate series.
-        :return: The modified window with the anomaly injected.
-        """
+        window = window.clone()
+        seq_len = window.shape[0]
 
-        # Clone the input tensor to avoid modifying the original data
-        window = window.clone() #.copy()
-
-        # Set the subsequence_length if not provided
+        # ---- subsequence length ----
         if subsequence_length is None:
-            min_len = int(window.shape[0] * 0.1)
-            max_len = int(window.shape[0] * 0.9)
-            subsequence_length = np.random.randint(min_len, max_len)
+            min_len = max(1, int(seq_len * 0.1))
+            max_len = max(min_len + 1, int(seq_len * 0.9))
+            subsequence_length = torch.randint(min_len, max_len, (1,)).item()
 
-        # Set the compression_factor if not provided
+        # ---- compression factor ----
         if compression_factor is None:
-            compression_factor = np.random.randint(2, 5)
+            compression_factor = torch.randint(2, 5, (1,)).item()
 
-        # Set the scale_factor if not provided
+        # ---- scale factor ----
         if scale_factor is None:
-            
-            scale_factor = np.random.uniform(0.1, 2.0, window.shape[1])
-            """""
+            scale_factor = torch.rand(
+                (window.shape[1],),
+                device=window.device
+            ) * 1.9 + 0.1  # range [0.1, 2.0]
 
-            scale_factor = torch.rand(window.shape[1], device=window.device) * 1.9 + 0.1
-
-            """
-            print('test')
-          
-
-        # Randomly select the start index for the subsequence
+        # ---- start index ----
         if start_index is None:
-            start_index = np.random.randint(0, len(window) - subsequence_length)
-        end_index = min(start_index + subsequence_length, window.shape[0])
+            start_index = torch.randint(
+                0,
+                max(1, seq_len - subsequence_length),
+                (1,)
+            ).item()
+
+        end_index = min(start_index + subsequence_length, seq_len)
 
         if trend_end:
-            end_index = window.shape[0]
+            end_index = seq_len
 
-        # Extract the subsequence from the window
-        anomalous_subsequence = window[start_index:end_index]
+        subseq = window[start_index:end_index]
 
-        # Concatenate the subsequence by the compression factor, and then subsample to compress it
-        # anomalous_subsequence = np.tile(anomalous_subsequence, (compression_factor, 1))
-        anomalous_subsequence = anomalous_subsequence.repeat(compression_factor, 1)  # cuda! PyTorch equivalent of np.tile()
-        anomalous_subsequence = anomalous_subsequence[::compression_factor]
+        # ---- frequency manipulation ----
+        subseq = subseq.repeat(compression_factor, 1)
+        subseq = subseq[::compression_factor]
 
-        # Scale the subsequence and replace the original subsequence with the anomalous subsequence
-        anomalous_subsequence = anomalous_subsequence * scale_factor
+        # ---- scaling ----
+        subseq = subseq * scale_factor
 
-        # Trend
+        # ---- trend ----
         if trend_factor is None:
-            trend_factor = np.random.normal(1, 0.5)
-        coef = 1
-        if np.random.uniform() < 0.5: coef = -1
-        anomalous_subsequence = anomalous_subsequence + coef * trend_factor
+            trend_factor = torch.normal(
+                mean=1.0,
+                std=0.5,
+                size=(1,)
+            ).item()
 
+        coef = -1 if torch.rand(1).item() < 0.5 else 1
+        subseq = subseq + coef * trend_factor
+
+        # ---- shapelet anomaly ----
         if shapelet_factor:
-            # anomalous_subsequence = window[start_index] + (np.random.rand(len(anomalous_subsequence)) * 0.1).reshape(-1, 1)
-            anomalous_subsequence = window[start_index] + (torch.rand_like(window[start_index]) * 0.1)  #cuda use!
+            base = window[start_index]
+            subseq = base + torch.rand_like(base) * 0.1
 
-        window[start_index:end_index] = anomalous_subsequence
+        # ---- replace ----
+        window[start_index:end_index] = subseq
 
-        return window.squeeze()  # Remove the extra dimension if the input was 1D
+        return window
 
-    def __call__(self, X):
-        """
-        Adding sub anomaly with user-defined portion
-        """
-        window = X.clone() #X.copy()
-        anomaly_seasonal = window.clone() #.copy()
-        anomaly_trend = window.clone() #.copy()
-        anomaly_global = window.clone() #.copy()
-        anomaly_contextual = window.clone() #.copy()
-        anomaly_shapelet = window.clone() #.copy()
-        min_len = int(window.shape[0] * 0.1)
-        max_len = int(window.shape[0] * 0.9)
-        subsequence_length = np.random.randint(min_len, max_len)
-        start_index = np.random.randint(0, len(window) - subsequence_length)
-        if (window.ndim > 1):
+
+    def __call__(self, X: torch.Tensor) -> torch.Tensor:
+        window = X.clone()
+
+        seq_len = window.shape[0]
+
+        min_len = max(1, int(seq_len * 0.1))
+        max_len = max(min_len + 1, int(seq_len * 0.9))
+
+        subsequence_length = torch.randint(min_len, max_len, (1,)).item()
+        start_index = torch.randint(
+            0,
+            max(1, seq_len - subsequence_length),
+            (1,)
+        ).item()
+
+        # ===== MULTIVARIATE =====
+        if window.ndim > 1:
             num_features = window.shape[1]
 
-            """
-            num_dims = np.random.randint(int(num_features/10), int(num_features/2)) #(int(num_features/5), int(num_features/2))
-            """
-            low = max(1, int(num_features/10))
-            high = max(low+1, int(num_features/2))
-            num_dims = np.random.randint(low, high)
+            low = max(1, int(num_features / 10))
+            high = max(low + 1, int(num_features / 2))
 
-            for k in range(num_dims):
-                i = np.random.randint(0, num_features)
-                temp_win = window[:, i].reshape((window.shape[0], 1))
-                anomaly_seasonal[:, i] = self.inject_frequency_anomaly(temp_win,
-                                                              scale_factor=1,
-                                                              trend_factor=0,
-                                                           subsequence_length=subsequence_length,
-                                                           start_index = start_index)
+            num_dims = torch.randint(low, high, (1,)).item()
 
-                anomaly_trend[:, i] = self.inject_frequency_anomaly(temp_win,
-                                                             compression_factor=1,
-                                                             scale_factor=1,
-                                                             trend_end=True,
-                                                           subsequence_length=subsequence_length,
-                                                           start_index = start_index)
+            anomaly_types = []
 
-                anomaly_global[:, i] = self.inject_frequency_anomaly(temp_win,
-                                                            subsequence_length=2,
-                                                            compression_factor=1,
-                                                            scale_factor=8,
-                                                            trend_factor=0,
-                                                           start_index = start_index)
+            for _ in range(num_dims):
+                i = torch.randint(0, num_features, (1,)).item()
 
-                anomaly_contextual[:, i] = self.inject_frequency_anomaly(temp_win,
-                                                            subsequence_length=4,
-                                                            compression_factor=1,
-                                                            scale_factor=3,
-                                                            trend_factor=0,
-                                                           start_index = start_index)
+                temp = window[:, i].unsqueeze(1)
 
-                anomaly_shapelet[:, i] = self.inject_frequency_anomaly(temp_win,
-                                                          compression_factor=1,
-                                                          scale_factor=1,
-                                                          trend_factor=0,
-                                                          shapelet_factor=True,
-                                                          subsequence_length=subsequence_length,
-                                                          start_index = start_index)
+                anomaly_types.append(
+                    self.inject_frequency_anomaly(
+                        temp,
+                        scale_factor=torch.ones(1, device=window.device),
+                        trend_factor=0,
+                        subsequence_length=subsequence_length,
+                        start_index=start_index
+                    )
+                )
 
+                anomaly_types.append(
+                    self.inject_frequency_anomaly(
+                        temp,
+                        compression_factor=1,
+                        scale_factor=torch.ones(1, device=window.device),
+                        trend_end=True,
+                        subsequence_length=subsequence_length,
+                        start_index=start_index
+                    )
+                )
+
+                anomaly_types.append(
+                    self.inject_frequency_anomaly(
+                        temp,
+                        subsequence_length=2,
+                        compression_factor=1,
+                        scale_factor=torch.tensor([8.0], device=window.device),
+                        trend_factor=0,
+                        start_index=start_index
+                    )
+                )
+
+                anomaly_types.append(
+                    self.inject_frequency_anomaly(
+                        temp,
+                        subsequence_length=4,
+                        compression_factor=1,
+                        scale_factor=torch.tensor([3.0], device=window.device),
+                        trend_factor=0,
+                        start_index=start_index
+                    )
+                )
+
+                anomaly_types.append(
+                    self.inject_frequency_anomaly(
+                        temp,
+                        compression_factor=1,
+                        scale_factor=torch.ones(1, device=window.device),
+                        trend_factor=0,
+                        shapelet_factor=True,
+                        subsequence_length=subsequence_length,
+                        start_index=start_index
+                    )
+                )
+
+            return random.choice(anomaly_types)
+
+        # ===== UNIVARIATE =====
         else:
-            temp_win = window.reshape((len(window), 1))
-            anomaly_seasonal = self.inject_frequency_anomaly(temp_win,
-                                                          scale_factor=1,
-                                                          trend_factor=0,
-                                                          subsequence_length=subsequence_length,
-                                                          start_index = start_index)
+            temp = window.unsqueeze(1)
 
-            anomaly_trend = self.inject_frequency_anomaly(temp_win,
-                                                         compression_factor=1,
-                                                         scale_factor=1,
-                                                         trend_end=True,
-                                                         subsequence_length=subsequence_length,
-                                                         start_index = start_index)
+            anomalies = [
+                self.inject_frequency_anomaly(
+                    temp,
+                    scale_factor=torch.ones(1, device=window.device),
+                    trend_factor=0,
+                    subsequence_length=subsequence_length,
+                    start_index=start_index
+                ),
+                self.inject_frequency_anomaly(
+                    temp,
+                    compression_factor=1,
+                    scale_factor=torch.ones(1, device=window.device),
+                    trend_end=True,
+                    subsequence_length=subsequence_length,
+                    start_index=start_index
+                ),
+                self.inject_frequency_anomaly(
+                    temp,
+                    subsequence_length=3,
+                    compression_factor=1,
+                    scale_factor=torch.tensor([8.0], device=window.device),
+                    trend_factor=0,
+                    start_index=start_index
+                ),
+                self.inject_frequency_anomaly(
+                    temp,
+                    subsequence_length=5,
+                    compression_factor=1,
+                    scale_factor=torch.tensor([3.0], device=window.device),
+                    trend_factor=0,
+                    start_index=start_index
+                ),
+                self.inject_frequency_anomaly(
+                    temp,
+                    compression_factor=1,
+                    scale_factor=torch.ones(1, device=window.device),
+                    trend_factor=0,
+                    shapelet_factor=True,
+                    subsequence_length=subsequence_length,
+                    start_index=start_index
+                )
+            ]
 
-            anomaly_global = self.inject_frequency_anomaly(temp_win,
-                                                        subsequence_length=3,
-                                                        compression_factor=1,
-                                                        scale_factor=8,
-                                                        trend_factor=0,
-                                                        start_index = start_index)
-
-            anomaly_contextual = self.inject_frequency_anomaly(temp_win,
-                                                        subsequence_length=5,
-                                                        compression_factor=1,
-                                                        scale_factor=3,
-                                                        trend_factor=0,
-                                                        start_index = start_index)
-
-            anomaly_shapelet = self.inject_frequency_anomaly(temp_win,
-                                                      compression_factor=1,
-                                                      scale_factor=1,
-                                                      trend_factor=0,
-                                                      shapelet_factor=True,
-                                                      subsequence_length=subsequence_length,
-                                                      start_index = start_index)
-
-        anomalies = [anomaly_seasonal,
-                     anomaly_trend,
-                     anomaly_global,
-                     anomaly_contextual,
-                     anomaly_shapelet
-                     ]
-
-        anomalous_window = random.choice(anomalies)
-
-        return anomalous_window
-
-
+            return random.choice(anomalies).squeeze()
 
 
+# =========================
+# Electricity Theft / Malicious Consumption Attack Injection (NOVELTY)
+# =========================
+class ElectricityTheftAttack(object):
+    """
+    Injeksi anomali sintetis berbasis ENAM fungsi serangan pencurian listrik
+    (electricity theft cyberattack) f1-f6 yang didefinisikan oleh:
+
+        Jokar, P., Arianpoo, N., & Leung, V. C. M. (2016). Electricity theft
+        detection in AMI using customers' consumption patterns. IEEE
+        Transactions on Smart Grid, 7(1), 216-226.
+
+    dan direplikasi/dipakai sebagai skema serangan acuan pada:
+
+        Nabil, M., Ismail, M., Mahmoud, M., Shahin, M., Qaraqe, K., &
+        Serpedin, E. (2018). Deep recurrent electricity theft detection in
+        AMI networks with random tuning of hyper-parameters. arXiv:1809.01774.
+
+    NOVELTY pada penelitian ini: SubAnomaly (di atas) menyuntikkan anomali
+    GENERIK yang tidak punya makna fisik khusus (manipulasi frekuensi/
+    shapelet/trend pada subsequence acak). Kelas ElectricityTheftAttack ini
+    menggantinya dengan anomali yang merepresentasikan PERILAKU PENCURIAN
+    LISTRIK NYATA pada smart meter: pelanggan nakal memanipulasi pembacaan
+    konsumsi asli Ec(d, t) menjadi pembacaan yang dilaporkan Rc(d, t) =
+    f(Ec(d, t)) untuk menurunkan tagihan listriknya. Dengan memakai anomali
+    sintetis yang merepresentasikan pola dunia nyata ini saat tahap pretext
+    (kontrastif) dan klasifikasi CARLA, representasi yang dipelajari model
+    diharapkan lebih relevan untuk domain load profile listrik (PLN)
+    dibandingkan anomali generik.
+
+    Keenam fungsi serangan (Ec = konsumsi asli, Rc = konsumsi yang dilaporkan
+    setelah serangan, T = panjang window/jumlah periode dalam satu hari):
+
+        f1  Flat Reduction Attack       Rc(t) = alpha * Ec(t)
+        f2  Dynamic Reduction Attack    Rc(t) = beta(t) * Ec(t)
+        f3  Selective Time Filtering /
+            Bypass Attack               Rc(t) = 0 untuk t di [ti, tf],
+                                         Rc(t) = Ec(t) di luar interval itu
+        f4  Average Consumption Attack  Rc(t) = E[Ec]  (rata-rata harian)
+        f5  Dynamic Average Attack      Rc(t) = beta(t) * E[Ec]
+        f6  Load Reordering Attack      Rc(t) = Ec(T - t + 1) (balik urutan
+                                         waktu, beban tinggi pindah ke jam
+                                         tarif rendah)
+
+    Catatan KOMPATIBILITAS: kelas ini murni TAMBAHAN baru dan TIDAK mengubah
+    SubAnomaly maupun perilaku default-nya sedikit pun. Kelas ini hanya aktif
+    jika dipilih lewat anomaly_kwargs['type'] == 'theft' (murni) atau
+    'theft+subseq' (campuran, lihat MixedAnomaly di bawah) pada file
+    konfigurasi (lihat inject_sub_anomaly() di utils/common_config.py). Selama
+    anomaly_kwargs['type'] tidak diisi (kasus SMD/MSL/SMAP/LEAD dan konfigurasi
+    PLN versi sebelumnya), seluruh pipeline tetap memakai SubAnomaly seperti
+    semula -> tidak ada perubahan perilaku untuk eksperimen/checkpoint lama.
+
+    window yang diterima/dikembalikan berbentuk (T, F): T = panjang window
+    (time steps dalam satu window/hari), F = jumlah fitur/kolom. Setiap
+    fungsi serangan diterapkan PER KOLOM (per fitur) pada sejumlah kolom yang
+    dipilih acak, konsisten dengan cara SubAnomaly menangani kasus
+    multivariat di atas.
+    """
+
+    ATTACK_CODES = ['f1', 'f2', 'f3', 'f4', 'f5', 'f6']
+
+    def __init__(self, portion_len: float = 0.5, alpha_range=(0.1, 0.8),
+                 beta_range=(0.1, 0.8)):
+        self.portion_len = portion_len  # disimpan agar antarmuka selaras dgn SubAnomaly
+        self.alpha_range = alpha_range
+        self.beta_range = beta_range
+
+    # ---- f1: Flat Reduction Attack: Rc(t) = alpha * Ec(t) ----
+    def _f1_flat_reduction(self, col: torch.Tensor) -> torch.Tensor:
+        alpha = torch.empty(1, device=col.device).uniform_(*self.alpha_range).item()
+        return col * alpha
+
+    # ---- f2: Dynamic Reduction Attack: Rc(t) = beta(t) * Ec(t) ----
+    def _f2_dynamic_reduction(self, col: torch.Tensor) -> torch.Tensor:
+        beta_t = self._random_beta_curve(col.shape[0], col.device)
+        return col * beta_t
+
+    # ---- f3: Selective Time Filtering / Bypass Attack ----
+    def _f3_selective_bypass(self, col: torch.Tensor) -> torch.Tensor:
+        col = col.clone()
+        T = col.shape[0]
+        min_len = max(1, int(T * 0.1))
+        max_len = max(min_len + 1, int(T * 0.9))
+        dur = torch.randint(min_len, max_len, (1,)).item()
+        ti = torch.randint(0, max(1, T - dur), (1,)).item()
+        tf = min(ti + dur, T)
+        col[ti:tf] = 0.0
+        return col
+
+    # ---- f4: Average Consumption Attack: Rc(t) = E[Ec] ----
+    def _f4_average(self, col: torch.Tensor) -> torch.Tensor:
+        mean_val = col.mean()
+        return torch.full_like(col, mean_val.item())
+
+    # ---- f5: Dynamic Average Attack: Rc(t) = beta(t) * E[Ec] ----
+    def _f5_dynamic_average(self, col: torch.Tensor) -> torch.Tensor:
+        mean_val = col.mean()
+        beta_t = self._random_beta_curve(col.shape[0], col.device)
+        return beta_t * mean_val
+
+    # ---- f6: Load Reordering Attack: Rc(t) = Ec(T - t + 1) ----
+    def _f6_load_reorder(self, col: torch.Tensor) -> torch.Tensor:
+        return torch.flip(col, dims=[0])
+
+    def _random_beta_curve(self, length: int, device) -> torch.Tensor:
+        """
+        Bangkitkan beta(t) yang berubah halus terhadap waktu (bukan white
+        noise per-step), sesuai gagasan f2/f5 di paper: faktor reduksi yang
+        "berubah dari waktu ke waktu". Caranya: sampling beberapa control
+        point acak dalam alpha_range/beta_range, lalu interpolasi linear
+        sepanjang window.
+        """
+        n_ctrl = max(2, length // 10)
+        ctrl = torch.empty(n_ctrl, device=device).uniform_(*self.beta_range)
+        ctrl = ctrl.view(1, 1, n_ctrl)
+        curve = torch.nn.functional.interpolate(
+            ctrl, size=length, mode='linear', align_corners=True
+        ).view(-1)
+        return curve
+
+    def _apply_random_attack(self, col: torch.Tensor) -> torch.Tensor:
+        fn = random.choice([
+            self._f1_flat_reduction,
+            self._f2_dynamic_reduction,
+            self._f3_selective_bypass,
+            self._f4_average,
+            self._f5_dynamic_average,
+            self._f6_load_reorder,
+        ])
+        return fn(col)
+
+    def __call__(self, X: torch.Tensor) -> torch.Tensor:
+        window = X.clone()
+
+        # ===== MULTIVARIATE =====
+        if window.ndim > 1:
+            num_features = window.shape[1]
+
+            low = max(1, int(num_features / 10))
+            high = max(low + 1, int(num_features / 2))
+            num_dims = torch.randint(low, high, (1,)).item()
+
+            cols_to_attack = torch.randperm(num_features)[:num_dims]
+            for i in cols_to_attack.tolist():
+                window[:, i] = self._apply_random_attack(window[:, i])
+
+            return window
+
+        # ===== UNIVARIATE =====
+        else:
+            return self._apply_random_attack(window)
 
 
+# =========================
+# Mixed Anomaly Injection (NOVELTY): theft+subseq
+# =========================
+class MixedAnomaly(object):
+    """
+    Gabungan SubAnomaly (anomali generik bawaan CARLA) + ElectricityTheftAttack
+    (NOVELTY f1-f6) dalam SATU mekanisme injeksi. Dipilih lewat
+    anomaly_kwargs['type'] == 'theft+subseq' (lihat inject_sub_anomaly() di
+    utils/common_config.py).
 
+    Tujuannya: bukan memilih salah satu (subseq ATAU theft), tapi mencampur
+    keduanya supaya model pretext/klasifikasi belajar membedakan window normal
+    dari DUA distribusi anomali sekaligus - anomali generik (frekuensi/
+    shapelet/trend) dan anomali yang merepresentasikan pola pencurian listrik
+    nyata (f1-f6). Tiap kali dipanggil (yaitu tiap window), salah satu dari
+    dua mekanisme dipilih secara acak sesuai `theft_ratio` (default 0.5 ->
+    campuran seimbang 50/50); window lain dalam dataset yang sama jadi bisa
+    mendapat anomali subseq atau theft secara bergantian.
+
+    Catatan KOMPATIBILITAS: kelas ini murni TAMBAHAN baru, tidak mengubah
+    SubAnomaly maupun ElectricityTheftAttack sedikit pun, dan hanya aktif
+    kalau anomaly_kwargs['type'] secara eksplisit diisi 'theft+subseq'. Semua
+    konfigurasi lama ('subseq'/tidak diisi, atau 'theft') tetap berjalan
+    seperti sebelumnya.
+    """
+
+    def __init__(self, portion_len: float = 0.5, theft_ratio: float = 0.5,
+                 alpha_range=(0.1, 0.8), beta_range=(0.1, 0.8)):
+        self.portion_len = portion_len  # disimpan agar antarmuka selaras dgn SubAnomaly/ElectricityTheftAttack
+        self.theft_ratio = theft_ratio
+        self._subseq = SubAnomaly(portion_len)
+        self._theft = ElectricityTheftAttack(portion_len, alpha_range=alpha_range, beta_range=beta_range)
+
+    def __call__(self, X: torch.Tensor) -> torch.Tensor:
+        if random.random() < self.theft_ratio:
+            return self._theft(X)
+        return self._subseq(X)

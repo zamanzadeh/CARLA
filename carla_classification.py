@@ -118,8 +118,62 @@ def main():
         val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean, base_dataset.std,
                                         TEST_TS, test_label)
 
-    elif p['train_db_name'] == 'smd' or p['train_db_name'] == 'kpi' or p['train_db_name'] == 'swat' \
-        or p['train_db_name'] == 'swan' or p['train_db_name'] == 'gecco' or p['train_db_name'] == 'wadi' or p['train_db_name'] == 'ucr':
+    elif p['train_db_name'] == 'pln':
+        # PLN: train_dataset (aug/neighbors) sudah dibangun di atas dari hasil pretext
+        # (sudah pooled+self-normalized per file di carla_pretext.py). Di sini cukup
+        # bangun val_dataset dengan pooling file held-out dari val_list.txt (BUKAN
+        # test_list.txt!) - val_dataset ini dipakai di bawah untuk memilih checkpoint
+        # terbaik (best_f1), jadi HARUS terpisah dari test_list.txt yang dipakai
+        # evaluate.py di akhir, supaya metrik akhir tidak bias optimis/data leakage.
+        # PLN selalu self-normalize sendiri jadi mean/std dari sini tidak dipakai.
+        from utils.dataset_channels import get_pln_val_files
+
+        val_files = get_pln_val_files()
+        for jj, file_name in enumerate(val_files):
+            p['fname'] = file_name
+            if jj == 0:
+                val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, None, None)
+            else:
+                new_val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, None, None)
+                val_dataset.concat_ds(new_val_dataset)
+
+        p['fname'] = 'All'
+
+    elif p['train_db_name'] == 'sgcc':
+        # SGCC: sama pola dengan PLN. train_dataset (neighbors) sudah dibangun dari
+        # pretext stage. Di sini hanya bangun val_dataset dari val_list.txt (bukan
+        # test_list.txt) untuk memilih checkpoint terbaik (best_f1) tanpa data leakage.
+        from utils.dataset_channels import get_sgcc_val_files
+
+        val_files = get_sgcc_val_files()
+        print(f'  SGCC val files: {len(val_files)} consumers (held-out)')
+        for jj, file_name in enumerate(val_files):
+            p['fname'] = file_name
+            if jj == 0:
+                val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, None, None)
+            else:
+                new_val = get_val_dataset(p, val_transformations, sanomaly, False, None, None)
+                val_dataset.concat_ds(new_val)
+
+        p['fname'] = 'All'
+
+    elif p['train_db_name'] == 'sgcc_large':
+        # SGCC_LARGE: identik dengan sgcc tapi val dari processed_large/
+        from utils.dataset_channels import get_sgcc_large_val_files
+
+        val_files = get_sgcc_large_val_files()
+        print(f'  SGCC_LARGE val files: {len(val_files)} consumers (held-out)')
+        for jj, file_name in enumerate(val_files):
+            p['fname'] = file_name
+            if jj == 0:
+                val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, None, None)
+            else:
+                new_val = get_val_dataset(p, val_transformations, sanomaly, False, None, None)
+                val_dataset.concat_ds(new_val)
+
+        p['fname'] = 'All'
+
+    elif p['train_db_name'] in ('smd', 'kpi', 'swat', 'swan', 'gecco', 'wadi', 'ucr', 'lead'):
         base_dataset = get_train_dataset(p, train_transformations, sanomaly, to_augmented_dataset=True)
         val_dataset = get_val_dataset(p, val_transformations, sanomaly, False, base_dataset.mean,
                                       base_dataset.std)
@@ -182,7 +236,26 @@ def main():
             predictions = get_predictions(p, tst_dl, model, False, False)
 
         label_counts = torch.bincount(predictions[0]['predictions'])
-        majority_label = label_counts.argmax()
+        max_count = label_counts.max()
+        tied = (label_counts == max_count).nonzero(as_tuple=True)[0]
+        if len(tied) == 1:
+            majority_label = tied[0]
+        else:
+            # Tie-break: pilih cluster dengan entropy terendah di train predictions
+            # (cluster "normal" biasanya lebih terpusat -> entropy lebih rendah)
+            probs = predictions[0]['probabilities']          # (N, num_classes)
+            tied_entropies = []
+            for cid in tied:
+                mask = predictions[0]['predictions'] == cid
+                if mask.sum() == 0:
+                    tied_entropies.append(float('inf'))
+                    continue
+                p_cluster = probs[mask].mean(dim=0)          # mean probs untuk cluster ini
+                ent = -(p_cluster * (p_cluster + 1e-8).log()).sum().item()
+                tied_entropies.append(ent)
+            majority_label = tied[int(np.argmin(tied_entropies))]
+            print(f'  [TIE] {len(tied)} cluster dengan jumlah sama ({max_count.item()}). '
+                  f'Dipilih cluster {majority_label.item()} (entropy terendah).')
 
         classification_stats = classification_evaluate(predictions)
         lowest_loss_head = classification_stats['lowest_loss_head']

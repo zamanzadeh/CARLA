@@ -1,126 +1,163 @@
-
 import os
-import pandas
+import ast
 import numpy as np
+import pandas as pd
+import torch
 from torch.utils.data import Dataset
 from utils.mypath import MyPath
-import ast
-from sklearn.preprocessing import MinMaxScaler, StandardScaler
-import torch
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 
 class MSL(Dataset):
+    """
+    NASA MSL Dataset — interface compatible dengan SMD dan pipeline CARLA.
+
+    Normalisasi:
+      - Train : data disimpan RAW; mean/std dihitung dan disimpan.
+                AugmentedDataset yang melakukan normalisasi.
+      - Test  : dinormalisasi menggunakan mean/std dari train set (mean_data, std_data).
+
+    __getitem__ mengembalikan:
+        {'ts_org': Tensor, 'target': Tensor, 'meta': dict}
+    """
+
     base_folder = ''
 
-    def __init__(self, fname, root=MyPath.db_root_dir('msl'), train=True, transform=None, sanomaly= None, mean_data=None, std_data=None):
+    def __init__(
+        self,
+        fname,
+        root=MyPath.db_root_dir('msl'),
+        train=True,
+        transform=None,
+        sanomaly=None,
+        mean_data=None,
+        std_data=None,
+        window_size=200,
+        stride=5,
+    ):
+        super().__init__()
 
-        super(MSL, self).__init__()
         self.root = root
+        self.fname = fname
+        self.train = train
         self.transform = transform
         self.sanomaly = sanomaly
-        self.train = train  # training set or test set
         self.classes = ['Normal', 'Anomaly']
-        self.data = []
-        self.targets = []
-        wsz, stride = 200, 1
 
-        with open(os.path.join(self.root, 'labeled_anomalies.csv'), 'r') as file:
-            csv_reader = pandas.read_csv(file, delimiter=',')
+        wsz = window_size
+        stride = stride
 
-        data_info = csv_reader[csv_reader['chan_id'] == fname]
+        # --------------------------------------------------
+        # 1. Load raw data
+        # --------------------------------------------------
+        split = 'train' if train else 'test'
+        file_path = os.path.join(root, 'data', split, fname + '.npy')
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"MSL file not found: {file_path}")
 
-        if self.train:
-            self.base_folder += 'train'
-        else:
-            self.base_folder += 'test'
-            labels = []
-            for index, row in data_info.iterrows():
-                anomalies = ast.literal_eval(row['anomaly_sequences'])
-                length = row.iloc[-1]
-                label = np.zeros([length], dtype=bool)
-                for anomaly in anomalies:
-                    label[anomaly[0]:anomaly[1] + 1] = True
-                labels.extend(label)
-            self.targets = np.asarray(labels)
+        temp = np.load(file_path).astype(np.float64)
 
-            self.mean, self.std = mean_data, std_data
-
-        file_path = os.path.join(self.root, self.base_folder, fname+'.npy')
-        temp = np.load(file_path)
-        if np.any(sum(np.isnan(temp))!=0):
-            print('Data contains NaN which replaced with zero')
+        if np.isnan(temp).any():
+            print(f'[WARNING] NaN terdeteksi di {fname}, diganti dengan 0')
             temp = np.nan_to_num(temp)
 
-        if self.train:
-            self.mean = np.mean(temp, axis=0)
-            self.std = np.std(temp , axis=0)
-            # min_column = np.amin(temp, axis=0)
-            # max_column = np.amax(temp, axis=0)
-            # self.mean, self.std = min_column, max_column 
+        # --------------------------------------------------
+        # 2. Labels
+        # --------------------------------------------------
+        if train:
+            labels = np.zeros(len(temp), dtype=int)
         else:
-            self.mean, self.std = mean_data, std_data
-            # range_val = (std_data - mean_data) + 1e-20
-            # temp = (temp - mean_data) / range_val
-            self.std[self.std == 0.0] = 1.0
-            temp = (temp - self.mean) / self.std
+            labels = self._load_anomaly_labels(fname)
 
+        # --------------------------------------------------
+        # 3. Normalisasi
+        # --------------------------------------------------
+        self.mean, self.std = mean_data, std_data
+
+        if train:
+            # Hitung statistik dari train; data TIDAK dinormalisasi di sini
+            # (AugmentedDataset yang menormalisasi melalui get_info())
+            self.mean = np.mean(temp, axis=0)
+            self.std = np.std(temp, axis=0)
+        else:
+            # Normalisasi test dengan statistik train
+            assert mean_data is not None and std_data is not None, \
+                "Berikan mean_data dan std_data dari train set untuk test MSL"
+            self.std = np.where(self.std == 0.0, 1.0, self.std)
+            temp = (temp - self.mean) / (self.std + 1e-8)
+
+        # --------------------------------------------------
+        # 4. Windowing
+        # --------------------------------------------------
         self.data = np.asarray(temp)
-        self.data, self.targets = self.convert_to_windows(wsz, stride)
+        self.targets = np.asarray(labels)
+        self.data, self.targets = self._create_windows(wsz, stride)
 
-    def convert_to_windows(self, w_size, stride):
-        windows = []
-        wlabels = []
-        sz = int((self.data.shape[0]-w_size)/stride)
-        for i in range(0, sz):
+    # --------------------------------------------------
+    # Internal helpers
+    # --------------------------------------------------
+    def _load_anomaly_labels(self, fname):
+        csv_path = os.path.join(self.root, 'labeled_anomalies.csv')
+        df = pd.read_csv(csv_path)
+        row = df[df['chan_id'] == fname].iloc[0]
+        anomalies = ast.literal_eval(row['anomaly_sequences'])
+        length = row['num_values']
+        labels = np.zeros(length, dtype=int)
+        for start, end in anomalies:
+            labels[start:end + 1] = 1
+        return labels
+
+    def _create_windows(self, w, stride):
+        n = self.data.shape[0]
+        sz = int((n - w) / stride)
+        windows, wlabels = [], []
+        for i in range(sz):
             st = i * stride
-            w = self.data[st:st+w_size]
-            if sum(self.targets[st:st+w_size]) > 0:
-                lbl = 1
-            else: lbl=0
-                    
-            windows.append(w)
-            wlabels.append(lbl)
+            window = self.data[st:st + w]
+            label = 1 if (self.targets[st:st + w] > 0).any() else 0
+            windows.append(window)
+            wlabels.append(label)
         return np.stack(windows), np.stack(wlabels)
 
+    # --------------------------------------------------
+    # Dataset API
+    # --------------------------------------------------
     def __getitem__(self, index):
-        """
-        Args:
-            index (int): Index
-        Returns:
-            dict: {'ts': ts, 'target': index of target class, 'meta': dict}
-        """
-        # ts_org = self.data[index]
-        ts_org = torch.from_numpy(self.data[index]).float().to(device)  # cuda
+        ts_org = torch.from_numpy(self.data[index]).float().to(device)
 
         if len(self.targets) > 0:
-            # target = self.targets[index].astype(int)
-            target = torch.tensor(self.targets[index].astype(int), dtype=torch.long).to(device)
-            class_name = self.classes[target]
+            target = torch.tensor(int(self.targets[index]), dtype=torch.long).to(device)
+            class_name = self.classes[int(target)]
         else:
-            target = 0
+            target = torch.tensor(0, dtype=torch.long).to(device)
             class_name = ''
 
-        ts_size = (ts_org.shape[0], ts_org.shape[1])
+        ts_size = (ts_org.shape[0], ts_org.shape[1]) if ts_org.ndim == 2 else (ts_org.shape[0],)
 
-        out = {'ts_org': ts_org, 'target': target, 'meta': {'ts_size': ts_size, 'index': index, 'class_name': class_name}}
-
-        return out
-
-    def get_ts(self, index):
-        ts = self.data[index]
-        return ts
-
-    def get_info(self):
-        return self.mean, self.std
-
-    def concat_ds(self, new_ds):
-        self.data = np.concatenate((self.data, new_ds.data), axis=0)
-        self.targets = np.concatenate((self.targets, new_ds.targets), axis=0)
+        return {
+            'ts_org': ts_org,
+            'target': target,
+            'meta': {'ts_size': ts_size, 'index': index, 'class_name': class_name},
+        }
 
     def __len__(self):
         return len(self.data)
 
+    # --------------------------------------------------
+    # Utilities (dibutuhkan oleh pipeline CARLA)
+    # --------------------------------------------------
+    def get_info(self):
+        """Mengembalikan (mean, std) dari train set."""
+        return self.mean, self.std
+
+    def get_ts(self, index):
+        return self.data[index]
+
+    def concat_ds(self, new_ds):
+        """Gabungkan dataset lain (dipakai untuk mode fname='All')."""
+        self.data = np.concatenate((self.data, new_ds.data), axis=0)
+        self.targets = np.concatenate((self.targets, new_ds.targets), axis=0)
+
     def extra_repr(self):
-        return "Split: {}".format("Train" if self.train is True else "Test")
+        return "Split: {}".format("Train" if self.train else "Test")

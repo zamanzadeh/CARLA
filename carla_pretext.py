@@ -138,8 +138,115 @@ def main():
         # base_dataset = get_train_dataset(p, train_transforms, sanomaly,
         #                                   to_augmented_dataset=True, data=TRAIN_TS, label=train_label)
 
-    elif p['train_db_name'] == 'smd' or p['train_db_name'] == 'kpi' or p['train_db_name'] == 'swat' \
-        or p['train_db_name'] == 'swan' or p['train_db_name'] == 'gecco' or p['train_db_name'] == 'wadi' or p['train_db_name'] == 'ucr':
+    elif p['train_db_name'] == 'pln':
+        # PLN: label per FILE (bukan per timestamp). train_dataset = pool semua file
+        # NORMAL (train_list.txt), val_dataset = pool semua file held-out campuran
+        # normal+anomali dari val_list.txt (BUKAN test_list.txt - test_list.txt
+        # dipakai HANYA oleh evaluate.py di akhir, supaya metrik akhir tidak bias
+        # optimis/data leakage karena terpakai juga utk monitor selama training).
+        from utils.dataset_channels import get_pln_train_files, get_pln_val_files
+        from data.custom_dataset import AugmentedDataset
+
+        train_files = get_pln_train_files()
+        for ii, file_name in enumerate(train_files):
+            p['fname'] = file_name
+            if ii == 0:
+                train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=False)
+            else:
+                new_train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=False)
+                train_dataset.concat_ds(new_train_dataset)
+
+        # Bungkus AugmentedDataset SATU KALI SAJA, SESUDAH semua file di-pool.
+        # AugmentedDataset menghitung self.samples (list pasangan ts_org/augment)
+        # sekali saat __init__, sepanjang len(dataset) SAAT ITU. Kalau di-wrap per
+        # file lalu di-concat_ds (seperti sebelumnya), __len__ ikut membesar tapi
+        # self.samples tidak ikut bertambah -> IndexError: list index out of range
+        # begitu DataLoader minta index di luar panjang file pertama.
+        train_dataset = AugmentedDataset(train_dataset)
+
+        val_files = get_pln_val_files()
+        for jj, file_name in enumerate(val_files):
+            p['fname'] = file_name
+            if jj == 0:
+                val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, None, None)
+            else:
+                new_val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, None, None)
+                val_dataset.concat_ds(new_val_dataset)
+
+        p['fname'] = 'All'  # paths checkpoint sudah dibentuk pakai 'All' di create_config
+
+    elif p['train_db_name'] == 'sgcc':
+        # SGCC: sama pola dengan PLN — label per consumer/file, bukan per timestamp.
+        # train_dataset = pool semua consumer NORMAL (train_list.txt).
+        # val_dataset   = consumer held-out dari val_list.txt (bukan test_list.txt).
+        # AugmentedDataset dibungkus SATU KALI setelah seluruh consumer di-pool
+        # (bukan per consumer) supaya self.samples tetap konsisten dengan __len__.
+        # Order normalisasi TERJAGA: SGCC(train=True) mengembalikan raw kWh,
+        # AugmentedDataset: attack(ts_raw) → normalize dengan get_info(). ✓
+        from utils.dataset_channels import get_sgcc_train_files, get_sgcc_val_files
+        from data.custom_dataset import AugmentedDataset
+
+        train_files = get_sgcc_train_files()
+        print(f'  SGCC train files: {len(train_files)} consumers (normal)')
+        for ii, file_name in enumerate(train_files):
+            p['fname'] = file_name
+            if ii == 0:
+                train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=False)
+            else:
+                new_ds = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=False)
+                train_dataset.concat_ds(new_ds)
+            if (ii + 1) % 2000 == 0:
+                print(f'  SGCC pooled {ii+1}/{len(train_files)} train consumers ...')
+
+        print(f'  Total windows setelah pool: {len(train_dataset)}')
+        train_dataset = AugmentedDataset(train_dataset)
+
+        val_files = get_sgcc_val_files()
+        print(f'  SGCC val files: {len(val_files)} consumers (held-out)')
+        for jj, file_name in enumerate(val_files):
+            p['fname'] = file_name
+            if jj == 0:
+                val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, None, None)
+            else:
+                new_val = get_val_dataset(p, val_transforms, sanomaly, False, None, None)
+                val_dataset.concat_ds(new_val)
+
+        p['fname'] = 'All'
+
+    elif p['train_db_name'] == 'sgcc_large':
+        # SGCC_LARGE: sama persis dengan sgcc, hanya root → processed_large/
+        # window_size=365, stride=14 sudah di-set di config dan diteruskan via common_config.
+        from utils.dataset_channels import get_sgcc_large_train_files, get_sgcc_large_val_files
+        from data.custom_dataset import AugmentedDataset
+
+        train_files = get_sgcc_large_train_files()
+        print(f'  SGCC_LARGE train files: {len(train_files)} consumers (normal)')
+        for ii, file_name in enumerate(train_files):
+            p['fname'] = file_name
+            if ii == 0:
+                train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=False)
+            else:
+                new_ds = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=False)
+                train_dataset.concat_ds(new_ds)
+            if (ii + 1) % 500 == 0:
+                print(f'  SGCC_LARGE pooled {ii+1}/{len(train_files)} train consumers ...')
+
+        print(f'  Total windows setelah pool: {len(train_dataset)}')
+        train_dataset = AugmentedDataset(train_dataset)
+
+        val_files = get_sgcc_large_val_files()
+        print(f'  SGCC_LARGE val files: {len(val_files)} consumers (held-out)')
+        for jj, file_name in enumerate(val_files):
+            p['fname'] = file_name
+            if jj == 0:
+                val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, None, None)
+            else:
+                new_val = get_val_dataset(p, val_transforms, sanomaly, False, None, None)
+                val_dataset.concat_ds(new_val)
+
+        p['fname'] = 'All'
+
+    elif p['train_db_name'] in ('smd', 'kpi', 'swat', 'swan', 'gecco', 'wadi', 'ucr', 'lead'):
         train_dataset = get_train_dataset(p, train_transforms, sanomaly, to_augmented_dataset=True)
         val_dataset = get_val_dataset(p, val_transforms, sanomaly, False, train_dataset.mean,
                                       train_dataset.std)
